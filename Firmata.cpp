@@ -77,6 +77,7 @@ void FirmataClass::begin(void)  //***long speed
   //FirmataStream = &Serial; //***
   blinkVersion();
   flagStreaming=1;
+  contPayloadSD=2;
   //printVersion();    //***
   //printFirmwareVersion();   //***
 }
@@ -231,7 +232,7 @@ void FirmataClass::processSysexMessage(void)
   default:
       //Serial.println("processSysexMessage==> CASE:default");
     if (currentSysexCallback){
-      Serial.println("processSysexMessage==> currentSysexCallback");
+      //Serial.println("processSysexMessage==> currentSysexCallback");
       (*currentSysexCallback)(storedInputData[0], sysexBytesRead - 1, storedInputData + 1);
       }
   }
@@ -289,13 +290,13 @@ void FirmataClass::processInput(uint8_t inputData)
           (*currentPinModeCallback)(storedInputData[1], storedInputData[0]);
         break;
       case REPORT_ANALOG:
-      Serial.println("--------->PROCESS INPUT::rEPORT_ANALOG");
+      //Serial.println("--------->PROCESS INPUT::rEPORT_ANALOG");
         if (currentReportAnalogCallback)
           //(*currentReportAnalogCallback)(multiByteChannel, storedInputData[0]);
           (*currentReportAnalogCallback)(storedInputData[1], storedInputData[0]); //***
         break;
       case REPORT_DIGITAL:
-      Serial.println("--------->PROCESS INPUT::REPORT_DIGITAL");
+      //Serial.println("--------->PROCESS INPUT::REPORT_DIGITAL");
         if (currentReportDigitalCallback)
           (*currentReportDigitalCallback)(multiByteChannel, storedInputData[0]);
         break;
@@ -363,6 +364,32 @@ void FirmataClass::sendAnalog(byte pin, int value)
   //FirmataStream->write(ANALOG_MESSAGE | (pin & 0xF));
   //sendValueAsTwo7bitBytes(value);
 }
+
+void FirmataClass::sendPayloadSD(void){
+    Serial.println("##sendPaylooaadSD##");
+    int runner=1;
+    payloadSD[0][0] = (START_SYSEX);
+    payloadSD[0][1] = (SAMPLES_PACKET);
+    while(runner<contPayloadSD){
+       // if (payloadSD[0][runner]==0x01 && payloadSD[0][runner+1]!=0x01 ) // we have a digital vaue
+       if (payloadSD[0][runner++]==0x02){   // we have an analog value
+           runner++;
+           sendValueAsTwo7bitBytesXbee(payloadSD[0], runner, payloadSD[0][runner]);
+       }
+    }
+    payloadSD[0][runner] = (END_SYSEX);
+    //sendValueAsTwo7bitBytesXbee(payload[0], 1, value);
+    /*Serial.println("##runner##          :");
+    Serial.println(runner);
+    for(int k=0;k<=runner;k++){
+    Serial.print(k);
+    Serial.print("  :");
+    Serial.println(payloadSD[0][k]);
+    }*/
+    tx64 = Tx64Request(addr64, payloadSD[0], ++runner);
+    xbee.send(tx64);
+    contPayloadSD=2;
+ }
 
 int FirmataClass::storeAnalog(byte pin, int value)
 {

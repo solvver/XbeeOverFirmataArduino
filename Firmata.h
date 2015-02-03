@@ -62,6 +62,7 @@
 #define REPORT_FIRMWARE         0x79 // report name and version of the firmware
 #define SAMPLING_INTERVAL       0x7A // set the poll rate of the main loop
 #define DELIVERY_INTERVAL       0x75 // set the delivery rate of samples of the main loop
+#define SAMPLES_PACKET          0x7D //send packet stored in sd or payloadSD
 #define SCHEDULER_DATA          0x7B // send a createtask/deletetask/addtotask/schedule/querytasks/querytask request to the scheduler
 #define SYSEX_NON_REALTIME      0x7E // MIDI Reserved for non-realtime messages
 #define SYSEX_REALTIME          0x7F // MIDI Reserved for realtime messages
@@ -107,6 +108,8 @@ public:
   XBee xbee;  //añadido arturo 12-1-15
   //uint8_t payload[300];
   uint8_t payload[10][100];
+  uint8_t payloadSD[10][100];
+  uint8_t contPayloadSD;   //initialized in begin(void)
   Rx64Response rx64;//***
   XBeeAddress64 rx64Address;
   XBeeAddress64 addr64;
@@ -145,6 +148,7 @@ public:
   int storeDigitalPort(byte portNumber, int portData);
   int storeAnalog(byte pin, int value);
   int sendFile(void);
+  void sendPayloadSD(void);
 
   /* utility methods */
   void sendValueAsTwo7bitBytes(int value);
