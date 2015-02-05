@@ -16,6 +16,8 @@
 #include <XBee.h>
 #include </home/solvver/Downloads/arduino-1.0.6/libraries/SD/SD.h>
 #include "Boards.h"  /* Hardware Abstraction Layer + Wiring/Arduino */
+#include <Time.h>
+#include <SD.h>
 
 /* Version numbers for the protocol.  The protocol is still changing, so these
  * version numbers are important.  This number can be queried so that host
@@ -71,6 +73,7 @@
 #define SYSEX_I2C_REQUEST       0x76 // same as I2C_REQUEST
 #define SYSEX_I2C_REPLY         0x77 // same as I2C_REPLY
 #define SYSEX_SAMPLING_INTERVAL 0x7A // same as SAMPLING_INTERVAL
+#define SET_TIME                0X80
 #define END_REPORT              0x99 // end report response
 
 // pin modes
@@ -108,8 +111,9 @@ public:
   XBee xbee;  //añadido arturo 12-1-15
   //uint8_t payload[300];
   uint8_t payload[10][100];
-  uint8_t payloadSD[10][100];
+  uint8_t payloadSD[10][300];
   uint8_t contPayloadSD;   //initialized in begin(void)
+  uint8_t numPayloadSD;
   Rx64Response rx64;//***
   XBeeAddress64 rx64Address;
   XBeeAddress64 addr64;
@@ -147,6 +151,7 @@ public:
   /*SD functions*/
   int storeDigitalPort(byte portNumber, int portData);
   int storeAnalog(byte pin, int value);
+  int storeSamplingPacket();
   int sendFile(void);
   void sendPayloadSD(void);
 

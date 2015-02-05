@@ -77,7 +77,8 @@ void FirmataClass::begin(void)  //***long speed
   //FirmataStream = &Serial; //***
   blinkVersion();
   flagStreaming=1;
-  contPayloadSD=2;
+  contPayloadSD=0;
+  numPayloadSD=0;
   //printVersion();    //***
   //printFirmwareVersion();   //***
 }
@@ -367,7 +368,7 @@ void FirmataClass::sendAnalog(byte pin, int value)
 
 void FirmataClass::sendPayloadSD(void){
     Serial.println("##sendPaylooaadSD##");
-    int runner=1;
+   /* int runner=1;
     payloadSD[0][0] = (START_SYSEX);
     payloadSD[0][1] = (SAMPLES_PACKET);
     while(runner<contPayloadSD){
@@ -385,16 +386,23 @@ void FirmataClass::sendPayloadSD(void){
     Serial.print(k);
     Serial.print("  :");
     Serial.println(payloadSD[0][k]);
-    }*/
+    }
     tx64 = Tx64Request(addr64, payloadSD[0], ++runner);
     xbee.send(tx64);
-    contPayloadSD=2;
+    contPayloadSD=2;*/
+     for (byte k=0;k<=numPayloadSD;k++){
+                    if (k==numPayloadSD) lengthPayload=contPayloadSD;
+                    for(byte i=0;i<lengthPayload;i++){
+                        payload[k][i]=payloadSD[0][i];
+                    }
+                }
  }
 
 int FirmataClass::storeAnalog(byte pin, int value)
 {
     Serial.println("storeAnalog---><++");
-  firmataFile = FirmataSD.open("firmata.txt", FILE_WRITE);
+    Serial.println(hour());
+    firmataFile = FirmataSD.open("firmata.txt", FILE_WRITE);
       if (firmataFile) {
              firmataFile.print("analogChanel  ");
              firmataFile.print(pin);
@@ -473,6 +481,30 @@ int FirmataClass::storeDigitalPort(byte portNumber, int portData){
           Serial.println("error opening test digital.txt");
           return (false);
         }
+}
+
+int FirmataClass::storeSamplingPacket(){
+    Serial.println("StoreSamplingPacket");
+    byte lengthPayload=95;
+    firmataFile = FirmataSD.open("firmata.txt", FILE_WRITE);
+    if (firmataFile) {
+        //SD storage
+    } else {                    //split payloadSD in packet
+        if (contPayloadSD>lengthPayload){
+            numPayloadSD=(contPayloadSD/lengthPayload);
+            contPayloadSD=(contPayloadSD%lengthPayload);
+            for (byte k=0;k<=numPayloadSD;k++){
+                if (k==numPayloadSD) lengthPayload=contPayloadSD;
+                for(byte i=0;i<lengthPayload;i++){
+                    payload[k][i]=payloadSD[0][i];
+                }
+            }
+        }  //else do nothing and send PayloadSD
+    }
+    //contPayloadSD;  //se inicializa a 0
+    //if(type==0x02){ //ANALOG
+    //    payloadSD[numPayloadSD][1]=0;
+    //}
 }
 
  /*/*payload[0][0] = (ANALOG_MESSAGE | (pin & 0xF));
