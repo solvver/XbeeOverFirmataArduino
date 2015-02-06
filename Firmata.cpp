@@ -368,6 +368,7 @@ void FirmataClass::sendAnalog(byte pin, int value)
 
 void FirmataClass::sendPayloadSD(void){
     Serial.println("##sendPaylooaadSD##");
+    Serial.println("##sPRINTINGgaylOads##");
    /* int runner=1;
     payloadSD[0][0] = (START_SYSEX);
     payloadSD[0][1] = (SAMPLES_PACKET);
@@ -390,11 +391,14 @@ void FirmataClass::sendPayloadSD(void){
     tx64 = Tx64Request(addr64, payloadSD[0], ++runner);
     xbee.send(tx64);
     contPayloadSD=2;*/
+
      for (byte k=0;k<=numPayloadSD;k++){
-                    if (k==numPayloadSD) lengthPayload=contPayloadSD;
-                    for(byte i=0;i<lengthPayload;i++){
-                        payload[k][i]=payloadSD[0][i];
+                    Serial.print("Numero");
+                    Serial.print(k);
+                    for(byte i=0;i<lengthPayloads[k];i++){
+                        Serial.print(payload[k][i]);
                     }
+                    Serial.println("");
                 }
  }
 
@@ -484,28 +488,71 @@ int FirmataClass::storeDigitalPort(byte portNumber, int portData){
 }
 
 int FirmataClass::storeSamplingPacket(){
-    Serial.println("StoreSamplingPacket");
+    //Serial.println("StoreSamplingPacket");
     byte lengthPayload=95;
+    byte totalLength=0;
+    byte contPayloads=0;
+    byte payloadSDiterator=0;
+    numAnalog=0;
+    numDigital=0;
+    byte typeSample=0;  //0 analog || 1 digital
+    byte lastSample=0;
     firmataFile = FirmataSD.open("firmata.txt", FILE_WRITE);
     if (firmataFile) {
         //SD storage
-    } else {                    //split payloadSD in packet
-        if (contPayloadSD>lengthPayload){
-            numPayloadSD=(contPayloadSD/lengthPayload);
-            contPayloadSD=(contPayloadSD%lengthPayload);
-            for (byte k=0;k<=numPayloadSD;k++){
-                if (k==numPayloadSD) lengthPayload=contPayloadSD;
-                for(byte i=0;i<lengthPayload;i++){
-                    payload[k][i]=payloadSD[0][i];
-                }
+    } else {                    //split payloadSD in packet and save date and START_SYXES, SAMPLES_PACKET and END_SYSEX
+        if ((contPayloadSD+8)>lengthPayload){
+            numPayloadSD=((contPayloadSD+8)/lengthPayload);
+            contPayloadSD=(contPayloadSD%lengthPayload)+8;
             }
-        }  //else do nothing and send PayloadSD
-    }
+           // Serial.println("numPayloadSD");
+           // Serial.println(numPayloadSD);
+            for (byte k=0;k<numPayloadSD;k++){
+                Serial.println("k");
+                            Serial.println(k);
+                if ((k+1)==numPayloadSD) {
+                lengthPayload=contPayloadSD;        //length last packet
+                } else {
+                lengthPayload=8;
+                }
+                    lastSample=0;
+                    payload[k][0]=START_SYSEX;
+                    payload[k][1]=SAMPLES_PACKET;
+                    payload[k][2]=day();
+                    payload[k][3]=month();
+                    payload[k][4]=year();
+                    payload[k][5]=hour();
+                    payload[k][6]=minute();
+                    payload[k][7]=second();
+                for(byte i=0;i<=lengthPayload;i++){
+                    payload[k][i+8]=payloadSD[0][payloadSDiterator];
+                    payloadSDiterator++;
+                    if (!lastSample){
+                        if(payloadSD[0][payloadSDiterator]==0x02) {     //one analog sample
+                            numAnalog++;
+                            lengthPayload+=4;
+                            typeSample=false;
+                        } else if (payloadSD[0][payloadSDiterator]==0x03) { //one digital sample
+                            numDigital++;
+                            lengthPayload+=3;
+                            typeSample=true;
+                        }
+                    }
+                    totalLength=numAnalog*4+numDigital*3+8;
+                    if(totalLength>(lengthPayload-5)){     //last iteration must to know if the last sample is digi or analog
+                        lengthPayloads[contPayloads]=i;     //get the end position of each packet
+                        lastSample=1;
+                        }
+                    }
+             payload[k][lengthPayloads[contPayloads++]] = END_SYSEX;
+             }
+    }  //else do nothing and send PayloadSD
+}
     //contPayloadSD;  //se inicializa a 0
     //if(type==0x02){ //ANALOG
     //    payloadSD[numPayloadSD][1]=0;
     //}
-}
+
 
  /*/*payload[0][0] = (ANALOG_MESSAGE | (pin & 0xF));
   sendValueAsTwo7bitBytesXbee(payload[0], 1, value);

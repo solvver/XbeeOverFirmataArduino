@@ -114,6 +114,9 @@ public:
   uint8_t payloadSD[10][300];
   uint8_t contPayloadSD;   //initialized in begin(void)
   uint8_t numPayloadSD;
+  uint8_t lengthPayloads[10];
+  uint8_t numAnalog;
+  uint8_t numDigital;
   Rx64Response rx64;//***
   XBeeAddress64 rx64Address;
   XBeeAddress64 addr64;
