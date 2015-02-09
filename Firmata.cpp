@@ -77,8 +77,12 @@ void FirmataClass::begin(void)  //***long speed
   //FirmataStream = &Serial; //***
   blinkVersion();
   flagStreaming=1;
-  contPayloadSD=0;
-  numPayloadSD=0;
+  contPayload=0;
+  numPayloads=0;
+  samplesCount=0;
+  numberChannels=0;
+  lengthPayload=90;
+  numPayloadsCounter=0;
   //printVersion();    //***
   //printFirmwareVersion();   //***
 }
@@ -360,15 +364,14 @@ void FirmataClass::sendAnalog(byte pin, int value)
   // pin can only be 0-15, so chop higher bits
   payload[0][0] = (ANALOG_MESSAGE | (pin & 0xF));
   sendValueAsTwo7bitBytesXbee(payload[0], 1, value);
-  tx64 = Tx64Request(addr64, payload[0], 4);
+  tx64 = Tx64Request(addr64, payload[0], 3);
   xbee.send(tx64);
   //FirmataStream->write(ANALOG_MESSAGE | (pin & 0xF));
   //sendValueAsTwo7bitBytes(value);
 }
 
 void FirmataClass::sendPayloadSD(void){
-    Serial.println("##sendPaylooaadSD##");
-    Serial.println("##sPRINTINGgaylOads##");
+    Serial.println("##sPRINTING--GayLorzas##");
    /* int runner=1;
     payloadSD[0][0] = (START_SYSEX);
     payloadSD[0][1] = (SAMPLES_PACKET);
@@ -391,18 +394,40 @@ void FirmataClass::sendPayloadSD(void){
     tx64 = Tx64Request(addr64, payloadSD[0], ++runner);
     xbee.send(tx64);
     contPayloadSD=2;*/
-
-     for (byte k=0;k<=numPayloadSD;k++){
+     /*for (byte k=0;k<=numPayloads;k++){
                     Serial.print("Numero");
-                    Serial.print(k);
-                    for(byte i=0;i<lengthPayloads[k];i++){
-                        Serial.print(payload[k][i]);
+                    Serial.println(k);
+                    if(k==numPayloads) {
+                        lengthPayload=((samplesCount*numberChannels)%(30*(numPayloads)))*3+9;
+                    } else {
+                        lengthPayload=99;
+                    }
+                    Serial.print("lengthPayload  :");
+                    Serial.println(lengthPayload);
+                    for(byte i=0;i<(lengthPayload);i++){
+                        Serial.print(payload[k][i], HEX);
                     }
                     Serial.println("");
-                }
+                }*/
+     for (byte k=0;k<=numPayloads;k++){
+                  Serial.print("Numero");
+                  Serial.println(k);
+                  if(k==numPayloads) {
+                      lengthPayload=((samplesCount*numberChannels)%(30*(numPayloads)))*3+9;
+                  } else {
+                      lengthPayload=99;
+                  }
+                  Serial.print("lengthPayload  :");
+                  Serial.println(lengthPayload);
+                  tx64 = Tx64Request(addr64, payload[k], lengthPayload);
+                  xbee.send(tx64);
+                  Serial.println("");
+              }
+        numPayloadsCounter=0;
+        contPayload=0;
  }
 
-int FirmataClass::storeAnalog(byte pin, int value)
+/*int FirmataClass::storeAnalog(byte pin, int value)
 {
     Serial.println("storeAnalog---><++");
     Serial.println(hour());
@@ -419,7 +444,7 @@ int FirmataClass::storeAnalog(byte pin, int value)
             Serial.println("error opening test analog.txt");
             return (false);
           }
-}
+}*/
 
 int FirmataClass::sendFile(void){
     firmataFile = FirmataSD.open("firmata.txt", FILE_READ);
@@ -469,7 +494,7 @@ void FirmataClass::sendDigitalPort(byte portNumber, int portData)
  tx64 = Tx64Request(addr64, payload[0], 3);
  xbee.send(tx64);
 }
-
+/*
 int FirmataClass::storeDigitalPort(byte portNumber, int portData){
     Serial.println("storeAnalog---><++");
     firmataFile = FirmataSD.open("firmata.txt", FILE_WRITE);
@@ -485,9 +510,69 @@ int FirmataClass::storeDigitalPort(byte portNumber, int portData){
           Serial.println("error opening test digital.txt");
           return (false);
         }
+}*/
+
+int FirmataClass::storeSamplingPacket(byte pin, int value, byte type){
+     Serial.println("storeSamplingPacket  :");
+    /*Serial.println("pin  :");
+    Serial.println(pin);
+    Serial.println("value  :");
+    Serial.println(value);*/
+    if(numPayloadsCounter==numPayloads){
+        lengthPayload=((samplesCount*numberChannels)%(30*(numPayloads)))*3+9;
+    } else {
+        lengthPayload=99;
+    }
+    Serial.print("lengthPayload storeSamplingPacket  :");
+    Serial.println(lengthPayload);
+    if (contPayload<8){
+        Serial.println("---firstSample---");
+        payload[numPayloadsCounter][contPayload++]=START_SYSEX;
+        //Serial.println(START_SYSEX, HEX);
+        payload[numPayloadsCounter][contPayload++]=SAMPLES_PACKET;
+        //Serial.println(SAMPLES_PACKET, HEX);
+        payload[numPayloadsCounter][contPayload++]=day();
+        //Serial.println(day(), HEX);
+        payload[numPayloadsCounter][contPayload++]=month();
+        //Serial.println(month(), HEX);
+        payload[numPayloadsCounter][contPayload++]=(year()&0x0F);
+        //Serial.println(year()&0x0F, HEX);
+        payload[numPayloadsCounter][contPayload++]=hour();
+        //Serial.println(hour(), HEX);
+        payload[numPayloadsCounter][contPayload++]=minute();
+        //Serial.println(minute(), HEX);
+        payload[numPayloadsCounter][contPayload++]=second();
+       // Serial.println(second(), HEX);
+       Serial.print("%&!!##!!%*contPayload 1  :");
+       Serial.println(contPayload);
+    }
+    if(type==0x01){
+        Serial.println("StoreDigitalSample");
+        payload[numPayloadsCounter][contPayload++]=(DIGITAL_MESSAGE | (pin & 0xF));
+        payload[numPayloadsCounter][contPayload++]=((byte)value % 128);
+        payload[numPayloadsCounter][contPayload++]=(value >> 7);
+        Serial.print("%&!!##!!%*contPayload  digi :");
+        Serial.println(contPayload);
+    }
+    if(type==0x02){
+        Serial.println("StoreAnalogSample");
+        payload[numPayloadsCounter][contPayload++]=(ANALOG_MESSAGE | (pin & 0xF));
+        sendValueAsTwo7bitBytesXbee(payload[numPayloadsCounter], contPayload, value);
+        contPayload+=2;
+        Serial.print("%&!!##!!%*contPayload  analog :");
+        Serial.println(contPayload);
+    }
+    if(contPayload==(lengthPayload-1)){
+       Serial.println("------------->ResetPayload<------------------");
+       payload[numPayloadsCounter][contPayload]=END_SYSEX;
+       Serial.print("%&!!##!!%*contPayload  3 :");
+       Serial.println(contPayload);
+       contPayload=0;
+       numPayloadsCounter++;
+    }
 }
 
-int FirmataClass::storeSamplingPacket(){
+/*int FirmataClass::storeSamplingPacket(){
     //Serial.println("StoreSamplingPacket");
     byte lengthPayload=95;
     byte totalLength=0;
@@ -554,7 +639,7 @@ int FirmataClass::storeSamplingPacket(){
     //}
 
 
- /*/*payload[0][0] = (ANALOG_MESSAGE | (pin & 0xF));
+ payload[0][0] = (ANALOG_MESSAGE | (pin & 0xF));
   sendValueAsTwo7bitBytesXbee(payload[0], 1, value);
   tx64 = Tx64Request(addr64, payload[0], 4);
   xbee.send(tx64);

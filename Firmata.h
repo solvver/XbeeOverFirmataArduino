@@ -112,11 +112,20 @@ public:
   //uint8_t payload[300];
   uint8_t payload[10][100];
   uint8_t payloadSD[10][300];
-  uint8_t contPayloadSD;   //initialized in begin(void)
+  uint8_t contPayload;   //initialized in begin(void)
   uint8_t numPayloadSD;
+  uint8_t numPayloadsCounter;
+
   uint8_t lengthPayloads[10];
   uint8_t numAnalog;
   uint8_t numDigital;
+  uint8_t samplesCount;
+  uint8_t numberChannels;
+  uint8_t totalSamples;
+  uint8_t lengthPayload;
+  uint8_t numPayloads;
+
+
   Rx64Response rx64;//***
   XBeeAddress64 rx64Address;
   XBeeAddress64 addr64;
@@ -152,9 +161,9 @@ public:
   void attach(byte command, sysexCallbackFunction newFunction);
   void detach(byte command);
   /*SD functions*/
-  int storeDigitalPort(byte portNumber, int portData);
-  int storeAnalog(byte pin, int value);
-  int storeSamplingPacket();
+  //int storeDigitalPort(byte portNumber, int portData);
+  //int storeAnalog(byte pin, int value);
+  int storeSamplingPacket(byte pin, int value, byte type);
   int sendFile(void);
   void sendPayloadSD(void);
 
