@@ -48,6 +48,7 @@
 #define ENCODER_DATA            0x61 // reply with encoders current positions
 #define SERVO_CONFIG            0x70 // set max angle, minPulse, maxPulse, freq
 #define STRING_DATA             0x71 // a string message with 14-bits per char
+#define INT_DATA                0x74
 #define STEPPER_DATA            0x72 // control a stepper motor
 #define ONEWIRE_DATA            0x73 // send an OneWire read/write/reset/select/skip/search request
 #define SHIFT_DATA              0x75 // a bitstream to/from a shift register
@@ -95,7 +96,7 @@ extern "C" {
   typedef void (*callbackFunction)(byte, int);
   typedef void (*systemResetCallbackFunction)(void);
   typedef void (*stringCallbackFunction)(char *);
-  typedef void (*sysexCallbackFunction)(byte command, byte argc, byte *argv);
+  typedef void (*sysexCallbackFunction)(byte command, byte argc, uint32_t *argv);
 }
 
 
@@ -119,9 +120,9 @@ public:
   uint8_t lengthPayloads[10];
   uint8_t numAnalog;
   uint8_t numDigital;
-  uint8_t samplesCount;
-  uint8_t numberChannels;
-  uint8_t totalSamples;
+  uint16_t samplesCount;
+  uint16_t numberChannels;
+  uint16_t totalSamples;
   uint8_t lengthPayload;
   uint8_t numPayloads;
 
@@ -152,6 +153,7 @@ public:
   void sendDigitalPort(byte portNumber, int portData);
   void sendString(const char *string);
   void sendString(byte command, const char *string);
+  void sendInt(uint8_t uint8_t);
   void sendSysex(byte command, byte bytec, byte *bytev);
   void write(byte c);
   /* attach & detach callback functions to messages */
@@ -182,7 +184,7 @@ private:
   byte waitForData; // this flag says the next serial input will be data
   byte executeMultiByteCommand; // execute this after getting multi-byte data
   byte multiByteChannel; // channel data for multiByteCommands
-  byte storedInputData[MAX_DATA_BYTES]; // multi-byte data
+  uint32_t storedInputData[MAX_DATA_BYTES]; // multi-byte data
   /* sysex */
   boolean parsingSysex;
   int sysexBytesRead;
