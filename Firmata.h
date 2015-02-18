@@ -125,6 +125,7 @@ public:
   uint16_t totalSamples;
   uint8_t lengthPayload;
   uint8_t numPayloads;
+  byte firstSample;
 
 
   Rx64Response rx64;//***

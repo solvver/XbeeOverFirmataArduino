@@ -83,6 +83,7 @@ void FirmataClass::begin(void)  //***long speed
   numberChannels=0;
   lengthPayload=90;
   numPayloadsCounter=0;
+  sending=0;
   //printVersion();    //***
   //printFirmwareVersion();   //***
 }
@@ -476,7 +477,7 @@ int FirmataClass::storeDigitalPort(byte portNumber, int portData){
         }
 }*/
 
-int FirmataClass::storeSamplingPacket(byte pin, int value, byte type){
+/*int FirmataClass::storeSamplingPacket(byte pin, int value, byte type){
     // Serial.println("storeSamplingPacket  :");
     //Firmata.sendString("arduino storing");
     if(numPayloadsCounter==numPayloads){
@@ -509,6 +510,22 @@ int FirmataClass::storeSamplingPacket(byte pin, int value, byte type){
        contPayload=0;
        numPayloadsCounter++;
     }
+}*/
+
+int FirmataClass::storeSamplingPacket(byte pin, int value, byte type){
+    byte contChannels;
+    byte prevPins[numberChannels];
+    if (firstSample==1){
+        contChannels=1;
+        prevPins[contChannels-1]=pin;
+    } else if (contChannels){
+        for (byte k=contChannels;k>=0;k--){
+            if (prevPins[k]!=pin){
+                contChannels
+            }
+        }
+    }
+
 }
 
 void FirmataClass::sendSysex(byte command, byte bytec, byte *bytev)
