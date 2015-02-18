@@ -521,7 +521,8 @@ int FirmataClass::storeSamplingPacket(byte pin, int value, byte type){
     } else if (contChannels){
         for (byte k=contChannels;k>=0;k--){
             if (prevPins[k]!=pin){
-                contChannels
+               prevPins[contChannels-1]=pin;
+               contChannels++;
             }
         }
     }
