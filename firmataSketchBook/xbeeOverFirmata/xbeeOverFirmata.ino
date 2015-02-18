@@ -28,7 +28,7 @@
 /*
  * TODO: use Program Control to load stored profiles from EEPROM
  */
-#include <SD.h>
+
 #include <Servo.h>
 #include <Wire.h>
 #include <Firmata.h>
@@ -52,7 +52,6 @@ uint8_t data[100];
 
 #define MAX_QUERIES 8
 #define MINIMUM_SAMPLING_INTERVAL 10
-#define MINIMUM_DELIVERY_INTERVAL 10
 
 #define REGISTER_NOT_SPECIFIED -1
 
@@ -75,9 +74,7 @@ int pinState[TOTAL_PINS];           // any value that has been written
 /* timer variables */
 unsigned long currentMillis;        // store the current value from millis()
 unsigned long previousMillis;       // for comparison with currentMillis
-unsigned long previousMillis2;      // same as currentMillis. Used with deliveryInterval
 unsigned int samplingInterval = 19;          // how often to run the main loop (in ms)
-unsigned int deliveryInterval = 0;           
 
 /* i2c data */
 struct i2c_device_info {
@@ -94,9 +91,54 @@ boolean isI2CEnabled = false;
 signed char queryIndex = -1;
 unsigned int i2cReadDelayTime = 0;  // default delay time between i2c read request and Wire.requestFrom()
 
+Servo servos[MAX_SERVOS];
+byte servoPinMap[TOTAL_PINS];
+byte detachedServos[MAX_SERVOS];
+byte detachedServoCount = 0;
+byte servoCount = 0;
+
+
 /*==============================================================================
  * FUNCTIONS
  *============================================================================*/
+
+void attachServo(byte pin, int minPulse, int maxPulse)
+{
+  if (servoCount < MAX_SERVOS) {
+    // reuse indexes of detached servos until all have been reallocated
+    if (detachedServoCount > 0) {
+      servoPinMap[pin] = detachedServos[detachedServoCount - 1];
+      if (detachedServoCount > 0) detachedServoCount--;
+    } else {
+      servoPinMap[pin] = servoCount;
+      servoCount++;
+    }
+    if (minPulse > 0 && maxPulse > 0) {
+      servos[servoPinMap[pin]].attach(PIN_TO_DIGITAL(pin), minPulse, maxPulse);
+    } else {
+      servos[servoPinMap[pin]].attach(PIN_TO_DIGITAL(pin));
+    }
+  } else {
+    Firmata.sendString("Max servos attached");
+  }
+}
+
+void detachServo(byte pin)
+{
+  servos[servoPinMap[pin]].detach();
+  // if we're detaching the last servo, decrement the count
+  // otherwise store the index of the detached servo
+  if (servoPinMap[pin] == servoCount && servoCount > 0) {
+    servoCount--;
+  } else if (servoCount > 0) {
+    // keep track of detached servos because we want to reuse their indexes
+    // before incrementing the count of attached servos
+    detachedServoCount++;
+    detachedServos[detachedServoCount - 1] = servoPinMap[pin];
+  }
+
+  servoPinMap[pin] = 255;
+}
 
 void readAndReportData(byte address, int theRegister, byte numBytes) {
   // allow I2C requests that don't require a register read
@@ -144,23 +186,16 @@ void readAndReportData(byte address, int theRegister, byte numBytes) {
 }
 
 void outputPort(byte portNumber, byte portValue, byte forceSend) 
-{  
+{
+  
   // pins not configured as INPUT are cleared to zeros
   portValue = portValue & portConfigInputs[portNumber];
   // only send if the value is different than previously sent
-  if (previousPINs[portNumber] != portValue) {
-    if (forceSend==true){
-      Firmata.sendDigitalPort(portNumber, portValue);
-      previousPINs[portNumber] = portValue;
-    } else if(Firmata.storeDigitalPort(portNumber, portValue)){      
-      previousPINs[portNumber] = portValue;
-    } else {  //store error
-    Serial.println("Storing digital in payloadSD");
-      Firmata.payloadSD[0][Firmata.contPayloadSD++]=0x01;
-      Firmata.payloadSD[0][Firmata.contPayloadSD++]=portNumber;
-      Firmata.payloadSD[0][Firmata.contPayloadSD++]=portValue;
-      previousPINs[portNumber] = portValue;
-    }    
+  if (forceSend || previousPINs[portNumber] != portValue) {
+    Serial.println("outputPort previousPINs[portNumber] != portValue");
+  Serial.println(portValue);
+    Firmata.sendDigitalPort(portNumber, portValue);
+    previousPINs[portNumber] = portValue;
   }
 }
 
@@ -172,25 +207,22 @@ void checkDigitalInputs(void)
   /* Using non-looping code allows constants to be given to readPort().
    * The compiler will apply substantial optimizations if the inputs
    * to readPort() are compile-time constants. */
-  int forceSend;
-  if (Firmata.flagStreaming==1) forceSend=true;
-  else forceSend=false;
-  if (TOTAL_PORTS > 0 && reportPINs[0]) outputPort(0, readPort(0, portConfigInputs[0]), forceSend);
-  if (TOTAL_PORTS > 1 && reportPINs[1]) outputPort(1, readPort(1, portConfigInputs[1]), forceSend);
-  if (TOTAL_PORTS > 2 && reportPINs[2]) outputPort(2, readPort(2, portConfigInputs[2]), forceSend);
-  if (TOTAL_PORTS > 3 && reportPINs[3]) outputPort(3, readPort(3, portConfigInputs[3]), forceSend);
-  if (TOTAL_PORTS > 4 && reportPINs[4]) outputPort(4, readPort(4, portConfigInputs[4]), forceSend);
-  if (TOTAL_PORTS > 5 && reportPINs[5]) outputPort(5, readPort(5, portConfigInputs[5]), forceSend);
-  if (TOTAL_PORTS > 6 && reportPINs[6]) outputPort(6, readPort(6, portConfigInputs[6]), forceSend);
-  if (TOTAL_PORTS > 7 && reportPINs[7]) outputPort(7, readPort(7, portConfigInputs[7]), forceSend);
-  if (TOTAL_PORTS > 8 && reportPINs[8]) outputPort(8, readPort(8, portConfigInputs[8]), forceSend);
-  if (TOTAL_PORTS > 9 && reportPINs[9]) outputPort(9, readPort(9, portConfigInputs[9]), forceSend);
-  if (TOTAL_PORTS > 10 && reportPINs[10]) outputPort(10, readPort(10, portConfigInputs[10]), forceSend);
-  if (TOTAL_PORTS > 11 && reportPINs[11]) outputPort(11, readPort(11, portConfigInputs[11]), forceSend);
-  if (TOTAL_PORTS > 12 && reportPINs[12]) outputPort(12, readPort(12, portConfigInputs[12]), forceSend);
-  if (TOTAL_PORTS > 13 && reportPINs[13]) outputPort(13, readPort(13, portConfigInputs[13]), forceSend);
-  if (TOTAL_PORTS > 14 && reportPINs[14]) outputPort(14, readPort(14, portConfigInputs[14]), forceSend);
-  if (TOTAL_PORTS > 15 && reportPINs[15]) outputPort(15, readPort(15, portConfigInputs[15]), forceSend);
+  if (TOTAL_PORTS > 0 && reportPINs[0]) outputPort(0, readPort(0, portConfigInputs[0]), false);
+  if (TOTAL_PORTS > 1 && reportPINs[1]) outputPort(1, readPort(1, portConfigInputs[1]), false);
+  if (TOTAL_PORTS > 2 && reportPINs[2]) outputPort(2, readPort(2, portConfigInputs[2]), false);
+  if (TOTAL_PORTS > 3 && reportPINs[3]) outputPort(3, readPort(3, portConfigInputs[3]), false);
+  if (TOTAL_PORTS > 4 && reportPINs[4]) outputPort(4, readPort(4, portConfigInputs[4]), false);
+  if (TOTAL_PORTS > 5 && reportPINs[5]) outputPort(5, readPort(5, portConfigInputs[5]), false);
+  if (TOTAL_PORTS > 6 && reportPINs[6]) outputPort(6, readPort(6, portConfigInputs[6]), false);
+  if (TOTAL_PORTS > 7 && reportPINs[7]) outputPort(7, readPort(7, portConfigInputs[7]), false);
+  if (TOTAL_PORTS > 8 && reportPINs[8]) outputPort(8, readPort(8, portConfigInputs[8]), false);
+  if (TOTAL_PORTS > 9 && reportPINs[9]) outputPort(9, readPort(9, portConfigInputs[9]), false);
+  if (TOTAL_PORTS > 10 && reportPINs[10]) outputPort(10, readPort(10, portConfigInputs[10]), false);
+  if (TOTAL_PORTS > 11 && reportPINs[11]) outputPort(11, readPort(11, portConfigInputs[11]), false);
+  if (TOTAL_PORTS > 12 && reportPINs[12]) outputPort(12, readPort(12, portConfigInputs[12]), false);
+  if (TOTAL_PORTS > 13 && reportPINs[13]) outputPort(13, readPort(13, portConfigInputs[13]), false);
+  if (TOTAL_PORTS > 14 && reportPINs[14]) outputPort(14, readPort(14, portConfigInputs[14]), false);
+  if (TOTAL_PORTS > 15 && reportPINs[15]) outputPort(15, readPort(15, portConfigInputs[15]), false);
 }
 
 // -----------------------------------------------------------------------------
@@ -199,13 +231,19 @@ void checkDigitalInputs(void)
  */
 void setPinModeCallback(byte pin, int mode)
 {
-  //Serial.println("SetPinModeCallback");
-  //Serial.println(pin);
-  //Serial.println(mode);
+  Serial.println("SetPinModeCallback");
+  Serial.println(pin);
+  Serial.println(mode);
   if (pinConfig[pin] == I2C && isI2CEnabled && mode != I2C) {
     // disable i2c so pins can be used for other functions
     // the following if statements should reconfigure the pins properly
     disableI2CPins();
+  }
+  if (IS_PIN_DIGITAL(pin) && mode != SERVO) {
+    //Serial.println("setPinModeCallback IS_PIN_DIGITAL !=Servo");
+    if (servoPinMap[pin] < MAX_SERVOS && servos[servoPinMap[pin]].attached()) {
+      detachServo(pin);
+    }
   }
   if (IS_PIN_ANALOG(pin)) {
    // Serial.println("setPinModeCallback IS_PIN_ANALOG");
@@ -214,7 +252,7 @@ void setPinModeCallback(byte pin, int mode)
     //Serial.println (mode);
   }
   if (IS_PIN_DIGITAL(pin)) {
-    //Serial.println("setPinModeCallback IS_PIN_DIGITAL");
+    Serial.println("setPinModeCallback IS_PIN_DIGITAL");
     if (mode == INPUT) {
       portConfigInputs[pin / 8] |= (1 << (pin & 7));
       //  Serial.print("Reporting???");
@@ -239,7 +277,7 @@ void setPinModeCallback(byte pin, int mode)
       break;
     case INPUT:
       if (IS_PIN_DIGITAL(pin)) {
-        //Serial.print("setPinModeCallback IS_PIN_DIGITAL CASE INPUT");
+        Serial.print("setPinModeCallback IS_PIN_DIGITAL CASE INPUT");
         pinMode(PIN_TO_DIGITAL(pin), INPUT); // disable output driver
         digitalWrite(PIN_TO_DIGITAL(pin), LOW); // disable internal pull-ups
         pinConfig[pin] = INPUT;
@@ -261,6 +299,16 @@ void setPinModeCallback(byte pin, int mode)
         pinConfig[pin] = PWM;
       }
       break;
+    case SERVO:
+      if (IS_PIN_DIGITAL(pin)) {
+        pinConfig[pin] = SERVO;
+        if (servoPinMap[pin] == 255 || !servos[servoPinMap[pin]].attached()) {
+          // pass -1 for min and max pulse values to use default values set
+          // by Servo library
+          attachServo(pin, -1, -1);
+        }
+      }
+      break;
     case I2C:
       if (IS_PIN_I2C(pin)) {
         // mark the pin as i2c
@@ -278,6 +326,11 @@ void analogWriteCallback(byte pin, int value)
 {
   if (pin < TOTAL_PINS) {
     switch (pinConfig[pin]) {
+      case SERVO:
+        if (IS_PIN_DIGITAL(pin))
+          servos[servoPinMap[pin]].write(value);
+        pinState[pin] = value;
+        break;
       case PWM:
         if (IS_PIN_PWM(pin))
           analogWrite(PIN_TO_PWM(pin), value);
@@ -336,17 +389,17 @@ void reportAnalogCallback(byte analogPin, int value)
 
 void reportDigitalCallback(byte port, int value)
 {
-  //Serial.println("01010101-REPORTdigitalCALLBACK---");
-  //Serial.println(port);
-  //Serial.println(value);
+  Serial.println("01010101-REPORTdigitalCALLBACK---");
+  Serial.println(port);
+  Serial.println(value);
   if (port < TOTAL_PORTS) {
     reportPINs[port] = (byte)value;
     // Send port value immediately. This is helpful when connected via
     // ethernet, wi-fi or bluetooth so pin states can be known upon
     // reconnecting.
-    //Serial.println("@#$@#$@#$@#$@#$@#$port < TOTAL_PORTS");
-    //Serial.println(digitalRead(3));
-    //Serial.println(readPort(port, 0x08), HEX); //portConfigInputs[port]
+    Serial.println("@#$@#$@#$@#$@#$@#$port < TOTAL_PORTS");
+    Serial.println(digitalRead(3));
+    Serial.println(readPort(port, 0x08), HEX); //portConfigInputs[port]
     if (value) outputPort(port, readPort(port, portConfigInputs[port]), true);
   }
   // do not disable analog reporting on these 8 pins, to allow some
@@ -363,13 +416,13 @@ void reportDigitalCallback(byte port, int value)
 
 void sysexCallback(byte command, byte argc, byte *argv)
 {
-  //Serial.print("sysexCallback==>");
-  //Serial.print("command:");
-  //Serial.print(command);
-  //Serial.print("argc");
-  //Serial.print(argc);
-  //Serial.print("argv");
-  //Serial.println(*argv);
+  Serial.print("sysexCallback==>");
+  Serial.print("command:");
+  Serial.print(command);
+  Serial.print("argc");
+  Serial.print(argc);
+  Serial.print("argv");
+  Serial.println(*argv);
   byte mode;
   byte slaveAddress;
   byte data;
@@ -480,6 +533,22 @@ void sysexCallback(byte command, byte argc, byte *argv)
         enableI2CPins();
       }
 
+      break;
+    case SERVO_CONFIG:
+      if (argc > 4) {
+        // these vars are here for clarity, they'll optimized away by the compiler
+        byte pin = argv[0];
+        int minPulse = argv[1] + (argv[2] << 7);
+        int maxPulse = argv[3] + (argv[4] << 7);
+
+        if (IS_PIN_DIGITAL(pin)) {
+          if (servoPinMap[pin] < MAX_SERVOS && servos[servoPinMap[pin]].attached()) {
+            detachServo(pin);
+          }
+          attachServo(pin, minPulse, maxPulse);
+          setPinModeCallback(pin, SERVO);
+        }
+      }
       break;*/
     case SAMPLING_INTERVAL:  //OK
       if (argc > 1) {
@@ -489,21 +558,6 @@ void sysexCallback(byte command, byte argc, byte *argv)
         }
       } else {
         //Firmata.sendString("Not enough data");
-      }
-      break;
-    case DELIVERY_INTERVAL:  //***
-       Serial.println("Delivery interval");
-      if (argc > 1) {
-        deliveryInterval = argv[0] + (argv[1] << 8); //***-7=>+8
-        Serial.print("Delivery interval value:   ");
-          Serial.println(deliveryInterval);
-        if (deliveryInterval < MINIMUM_DELIVERY_INTERVAL) {
-          deliveryInterval = MINIMUM_DELIVERY_INTERVAL;
-        }
-        if (deliveryInterval==65535) {
-          Firmata.flagStreaming=1;
-        }
-        else Firmata.flagStreaming=0;
       }
       break;
     /*case EXTENDED_ANALOG:
@@ -582,7 +636,7 @@ void sysexCallback(byte command, byte argc, byte *argv)
       }
       break;*/
     case ANALOG_MAPPING_QUERY:  // OK
-        //Serial.println("ANALOG_MAPPING_QUERY");
+        Serial.println("ANALOG_MAPPING_QUERY");
           Firmata.payload[0][cont++]=START_SYSEX;
       Firmata.payload[0][cont++]=ANALOG_MAPPING_RESPONSE;
       for (byte pin = 0; pin < TOTAL_PINS; pin++) {
@@ -663,9 +717,13 @@ void systemResetCallback()
       setPinModeCallback(i, OUTPUT);
     }
 
+    servoPinMap[i] = 255;
   }
   // by default, do not report any analog inputs
   analogInputsToReport = 0;
+
+  detachedServoCount = 0;
+  servoCount = 0;
 
   /* send digital inputs to set the initial state on the host computer,
    * since once in the loop(), this firmware will only send on change */
@@ -695,12 +753,6 @@ void setup()
   Serial.begin(57600);  //***
   Serial.println("Firmata is going to START");
   Firmata.begin();
-  pinMode(22, OUTPUT);
-  pinMode(SS, OUTPUT);
-  if (!Firmata.FirmataSD.begin(SS)) {
-    Serial.println("initialization failed!");
-    return;
-  } else Serial.println("initialization done.");
  // systemResetCallback();  // reset to default config
  Serial.println("SETUP is DONE");
 }
@@ -712,14 +764,6 @@ void loop()
 {
   byte pin, analogPin;
   int contDataRx;
-  
-  currentMillis = millis();
-  if ((currentMillis - previousMillis2) > deliveryInterval && Firmata.flagStreaming==0){ //enviar paquetes almacenados mientras tanto
-    previousMillis2+=deliveryInterval;
-    Serial.println("sendfilesendfilesendfile");
-    if(Firmata.sendFile());
-    else Firmata.sendPayloadSD();
-  }
     
   Firmata.xbee.readPacket();
 
@@ -749,8 +793,8 @@ void loop()
                 option = Firmata.rx64.getOption();
                 
                 for(contDataRx=0;contDataRx<(((Firmata.xbee.getResponse().getMsbLength()<<8)+Firmata.xbee.getResponse().getLsbLength())-11);contDataRx++){
-                //Serial.print("Data to process");
-                //Serial.println(Firmata.rx64.getData(contDataRx), HEX);
+                Serial.print("Data to process");
+                Serial.println(Firmata.rx64.getData(contDataRx), HEX);
                 Firmata.processInput(Firmata.rx64.getData(contDataRx));
               }  
         }
@@ -759,6 +803,8 @@ void loop()
   /* SEND FTDI WRITE BUFFER - make sure that the FTDI buffer doesn't go over
    * 60 bytes. use a timer to sending an event character every 4 ms to
    * trigger the buffer to dump. */
+
+  currentMillis = millis();
   if (currentMillis - previousMillis > samplingInterval) {
     previousMillis += samplingInterval;
     /* ANALOGREAD - do all analogReads() at the configured sampling interval */
@@ -766,17 +812,8 @@ void loop()
       if (IS_PIN_ANALOG(pin) && pinConfig[pin] == ANALOG) {
         analogPin = PIN_TO_ANALOG(pin);
         if (analogInputsToReport & (1 << analogPin)) {
-          if(Firmata.flagStreaming==1){
-            Firmata.sendAnalog(analogPin, analogRead(analogPin));
-            }  else if(Firmata.storeAnalog(analogPin, analogRead(analogPin))){      
-            } else {  //store error
-              Serial.println("Storing analog in payloadSD");
-              Firmata.payloadSD[0][Firmata.contPayloadSD++]=ANALOG;
-              Firmata.payloadSD[0][Firmata.contPayloadSD++]=analogPin;
-              Firmata.payloadSD[0][Firmata.contPayloadSD++]=analogRead(analogPin);
-              Firmata.payloadSD[0][Firmata.contPayloadSD++]=0;
-            }
-          }
+          Firmata.sendAnalog(analogPin, analogRead(analogPin));
+        }
       }
     }
     // report i2c data for all device with read continuous mode enabled

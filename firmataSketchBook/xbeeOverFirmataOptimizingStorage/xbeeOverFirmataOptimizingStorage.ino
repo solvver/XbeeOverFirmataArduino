@@ -390,7 +390,7 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
   switch (command) {
       case SET_TIME:
       //Serial.println("SETTimeSETTimeSETTimeSETTimeSETTime");
-      setTime((argv[3]-16),(argv[4]-16),(argv[5]-16),(argv[2]-16),(argv[1]-16),argv[0]);
+      setTime((argv[3]-16),(argv[4]-16),(argv[5]-16),(argv[2]-16),(argv[1]-16),(argv[0]-16));
       break;
     /*case I2C_REQUEST:
       mode = argv[1] & I2C_READ_WRITE_MODE_MASK;
@@ -494,10 +494,14 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
 
       break;*/
     case SAMPLING_INTERVAL:  //OK
-     // Serial.print("sampling iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiinterval");
+      Serial.print("sampling interval  ");
       if (argc > 1) {
-        samplingInterval = (argv[0] + (argv[1] << 8)); //***-7=>+8
-        //Serial.print(samplingInterval);
+        //if (argv[1]!=0){
+          samplingInterval = (argv[0] + (argv[1] << 8)); //***-7=>+8
+        /*} else {
+          samplingInterval=argv[0];
+        }*/
+        Serial.println(samplingInterval);
         if (samplingInterval < MINIMUM_SAMPLING_INTERVAL) {
           samplingInterval = MINIMUM_SAMPLING_INTERVAL;
         }
@@ -506,6 +510,7 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
       }
       break;
     case DELIVERY_INTERVAL:  //***
+    Serial.print("DELIVERY_INTERVAL");
       if (argc > 1) {
         if (argc==4){
           deliveryInterval = ((argv[0]<< 24) + (argv[1]<<16) + (argv[2]<<8) + (argv[3]));
@@ -514,6 +519,7 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
         } else {
           deliveryInterval = ((argv[0]<< 8) + (argv[1]));
         }
+        Serial.println(deliveryInterval);
        // Firmata.sendString("DELIVERY_INTERVAL");
        // Serial.print("Delivery interval value:   ");
        //Serial.println(deliveryInterval);
