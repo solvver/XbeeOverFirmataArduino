@@ -83,7 +83,13 @@ void FirmataClass::begin(void)  //***long speed
   numberChannels=0;
   lengthPayload=90;
   numPayloadsCounter=0;
-  sending=0;
+  samplePacketInitialiced=0;
+  for (byte k=3;k>0;k--){
+    firstSample[k]=true;
+    for (byte i=0;i<=TOTAL_PINS;i++){
+          contSamplesStored[k][i]=1;
+        }
+  }
   //printVersion();    //***
   //printFirmwareVersion();   //***
 }
@@ -371,9 +377,12 @@ void FirmataClass::sendAnalog(byte pin, int value)
   //sendValueAsTwo7bitBytes(value);
 }
 
-void FirmataClass::sendPayloadSD(void){
+void FirmataClass::sendSamplingPacket(void){
+    bool firstPacket=true;
+
+}
      //Serial.println("##sPRINTING--GayLorzas##");
-     for (byte k=0;k<=numPayloads;k++){
+     /*for (byte k=0;k<=numPayloads;k++){
              // Serial.print("Numero");
              // Serial.println(k);
           if(k==numPayloads) {
@@ -389,10 +398,9 @@ void FirmataClass::sendPayloadSD(void){
          // Serial.println("");
       }
     numPayloadsCounter=0;
-    contPayload=0;
- }
+    contPayload=0;*/
 
-/*int FirmataClass::storeAnalog(byte pin, int value)
+/*in FirmataClass::storeAnalog(byte pin, int value)
 {
     Serial.println("storeAnalog---><++");
     Serial.println(hour());
@@ -512,22 +520,44 @@ int FirmataClass::storeDigitalPort(byte portNumber, int portData){
     }
 }*/
 
-int FirmataClass::storeSamplingPacket(byte pin, int value, byte type){
-    byte contChannels;
-    byte prevPins[numberChannels];
-    if (firstSample==1){
-        contChannels=1;
-        prevPins[contChannels-1]=pin;
-    } else if (contChannels){
-        for (byte k=contChannels;k>=0;k--){
-            if (prevPins[k]!=pin){
-               prevPins[contChannels-1]=pin;
-               contChannels++;
-            }
+int FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
+    bool channelStoredBefore=false;
+    if (firstSample[type]==true){
+        firstSample[type]=false;
+        contChannels[type]=1;
+        if (!samplePacketInitialiced){
+                    samplesPacket=(uint8_t***)calloc(((numberChannels*samplesCount*2)+(numberChannels)), sizeof(uint8_t)); //reservar memoria para 2 bytes por muestra y una de número canal
+                    samplePacketInitialiced=true;
+                    }
+        samplesPacket[type][0][0]=pin;
+    } else {
+        for (byte k=contChannels[type];k>0;k--){
+          if (pin==samplesPacket[type][k-1][0]) channelStoredBefore=true;
+        }
+        if (!channelStoredBefore){
+          samplesPacket[type][contChannels[type]][0]=pin;
+          contChannels[type]++;
         }
     }
-
+    if (type==1){
+        for (byte channelNumber=0;channelNumber<contChannels[type];channelNumber++){
+            if (pin==samplesPacket[1][channelNumber][0]){
+                samplesPacket[1][channelNumber][contSamplesStored[1][channelNumber]++]=((uint8_t)value % 128);
+                samplesPacket[1][channelNumber][contSamplesStored[1][channelNumber]++]=(value >> 7);
+            }
+        }
+    } else if (type==2) {
+          for (byte channelNumber=0;channelNumber<contChannels[type];channelNumber++){
+                    if (pin==samplesPacket[2][channelNumber][0]){
+                       // samplesPacket[2][channelNumber][contSamplesStored[2][channelNumber]++]=((uint8_t)value % 128);
+                       // samplesPacket[2][channelNumber][contSamplesStored[2][channelNumber]++]=(value >> 7);
+                       sendValueAsTwo7bitBytesXbee(samplesPacket[2][channelNumber], contSamplesStored[2][channelNumber], value);
+                       contSamplesStored[2][channelNumber]+=2;
+                    }
+                }
+    }
 }
+//contSamplesStored[3][TOTAL_PINS];
 
 void FirmataClass::sendSysex(byte command, byte bytec, byte *bytev)
 {

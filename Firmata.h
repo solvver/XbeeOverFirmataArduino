@@ -112,7 +112,7 @@ public:
   XBee xbee;  //añadido arturo 12-1-15
   //uint8_t payload[300];
   uint8_t payload[10][100];
-  uint8_t payloadSD[10][300];
+  uint8_t samplingPacket[10][120];
   uint8_t contPayload;   //initialized in begin(void)
   uint8_t numPayloadSD;
   uint8_t numPayloadsCounter;
@@ -125,7 +125,14 @@ public:
   uint16_t totalSamples;
   uint8_t lengthPayload;
   uint8_t numPayloads;
-  byte firstSample;
+
+  uint8_t ***samplesPacket;
+ // uint8_t *channels;
+  byte prevChannels[TOTAL_PINS];
+  uint16_t contSamplesStored[3][TOTAL_PINS];  //[typeSample]x[channels]
+  byte contChannels[3];
+  bool firstSample[3];
+  bool samplePacketInitialiced;
 
 
   Rx64Response rx64;//***
@@ -166,9 +173,9 @@ public:
   /*SD functions*/
   //int storeDigitalPort(byte portNumber, int portData);
   //int storeAnalog(byte pin, int value);
-  int storeSamplingPacket(byte pin, int value, byte type);
+  int storeSamplingPacket(uint8_t pin, int value, byte type);
   int sendFile(void);
-  void sendPayloadSD(void);
+  void sendSamplingPacket(void);
 
   /* utility methods */
   void sendValueAsTwo7bitBytes(int value);
