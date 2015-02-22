@@ -752,7 +752,7 @@ void loop()
   
   currentMillis = millis();
   
-  if ((currentMillis - previousMillis2) > deliveryInterval && Firmata.flagStreaming==0 && Firmata.payload[0][1]==SAMPLES_PACKET){ //enviar paquetes almacenados mientras tanto
+  if ((currentMillis - previousMillis2) > deliveryInterval && Firmata.flagStreaming==0){ //enviar paquetes almacenados mientras tanto
     previousMillis2+=deliveryInterval;
     /*if(Firmata.sendFile());
     else Firmata.sendPayloadSD();*/
@@ -822,7 +822,7 @@ void loop()
           if(Firmata.flagStreaming==1){
             Firmata.sendAnalog(analogPin, analogRead(analogPin));
             }  else {  //store error
-              Firmata.storeSamplingPacket(analogPin, analogRead(analogPin), 0x02);
+              Firmata.storeSamplingPacket(analogPin, analogRead(analogPin), 2);
             }
           }
       }

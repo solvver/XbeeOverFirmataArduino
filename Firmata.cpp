@@ -83,13 +83,14 @@ void FirmataClass::begin(void)  //***long speed
   lengthPayload=90;
   numPayloadsCounter=0;
   samplePacketInitialiced=0;
-  for (byte k=3;k>0;k--){
+  for (byte k=1;k<4;k++){
     firstSample[k]=true;
+    contChannels[k]=0;
     for (byte i=0;i<=TOTAL_PINS;i++){
-          contSamplesStored[k][i]=1;
-        }
-  }
-  //printVersion();    //***
+                  contSamplesStored[k][i]=1;
+       }
+   }
+   //printVersion();    //***
   //printFirmwareVersion();   //***
 }
 
@@ -377,8 +378,9 @@ void FirmataClass::sendAnalog(byte pin, int value)
 }
 
 void FirmataClass::sendSamplingPacket(void){
+Serial.println("sendSamplingPacket");
     //numPayloads=((numberChannels*samplesCount*2+8)%lengthPayload);
-    /*byte contPayload=0;
+    byte contPayload=0;
     byte contSamplesPayload=0;
     uint16_t totalSamplesStored=0;
 
@@ -418,6 +420,7 @@ void FirmataClass::sendSamplingPacket(void){
         }
     }
      for (byte typesCounter=3;typesCounter>0;typesCounter--){
+        firstSample[typesCounter]=0;
             for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
                 free (samplesPacket[typesCounter][channelsCounter]);
             }
@@ -428,7 +431,7 @@ void FirmataClass::sendSamplingPacket(void){
             tx64 = Tx64Request(addr64, payload[contPayloadToSend], lengthPayload);
             xbee.send(tx64);
     }
-*/
+
 }
      //Serial.println("##sPRINTING--GayLorzas##");
      /*for (byte k=0;k<=numPayloads;k++){
@@ -570,12 +573,16 @@ int FirmataClass::storeDigitalPort(byte portNumber, int portData){
 }*/
 
 int FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
-    /*bool channelStoredBefore=false;
+    Serial.println("storeSamplingPacket");
+    bool channelStoredBefore=false;
     if (firstSample[type]==true){
+        Serial.println("first sample to store");
         firstSample[type]=false;
         contChannels[type]=1;
-        if (!samplePacketInitialiced){
-                   // samplesPacket=(uint8_t***)calloc(((numberChannels*samplesCount*2)+(numberChannels)), sizeof(uint8_t)); //reservar memoria para 2 bytes por muestra y una de número canal
+        if (samplePacketInitialiced==0){
+                    Serial.println("initialicing samplespaclet");
+                    samplesPacket=(uint8_t***)calloc(((numberChannels*samplesCount*2)+(numberChannels)), sizeof(uint8_t)); //reservar memoria para 2 bytes por muestra y una de número canal
+                   // uint8_t*** samplesPacket;
                     Serial.print("sizeof(samplesPacket)  :");
                     Serial.println(sizeof(samplesPacket));
                     samplePacketInitialiced=true;
@@ -583,9 +590,13 @@ int FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
         samplesPacket[type][0][0]=pin;
     } else {
         for (byte k=contChannels[type];k>0;k--){
+        Serial.print("  k   :");
+        Serial.println(k);
           if (pin==samplesPacket[type][k-1][0]) channelStoredBefore=true;
+          Serial.println("channelStoredBefore");
         }
-        if (!channelStoredBefore){
+        if (channelStoredBefore==false){
+        Serial.println("storing sample for 1 channel for first time");
           samplesPacket[type][contChannels[type]][0]=pin;
           contChannels[type]++;
         }
@@ -599,6 +610,7 @@ int FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
         }
     } else if (type==2) {
           for (byte channelNumber=0;channelNumber<contChannels[type];channelNumber++){
+                    Serial.println("storing one analog channel");
                     if (pin==samplesPacket[2][channelNumber][0]){
                        // samplesPacket[2][channelNumber][contSamplesStored[2][channelNumber]++]=((uint8_t)value % 128);
                        // samplesPacket[2][channelNumber][contSamplesStored[2][channelNumber]++]=(value >> 7);
@@ -606,7 +618,7 @@ int FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
                        contSamplesStored[2][channelNumber]+=2;
                     }
                 }
-    }*/
+    }
 }
 
 

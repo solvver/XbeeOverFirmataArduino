@@ -128,9 +128,9 @@ public:
   uint8_t ***samplesPacket;
  // uint8_t *channels;
   byte prevChannels[TOTAL_PINS];
-  uint16_t contSamplesStored[3][TOTAL_PINS];  //[typeSample]x[channels]
-  byte contChannels[3];
-  bool firstSample[3];
+  uint16_t contSamplesStored[4][TOTAL_PINS];  //[typeSample]x[channels]
+  byte contChannels[4];
+  bool firstSample[4];
   bool samplePacketInitialiced;
 
 
