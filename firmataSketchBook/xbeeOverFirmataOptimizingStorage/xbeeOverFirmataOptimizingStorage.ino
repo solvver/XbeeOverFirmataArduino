@@ -757,7 +757,7 @@ void loop()
     /*if(Firmata.sendFile());
     else Firmata.sendPayloadSD();*/
    // Firmata.sendString("arduino sending");
-     Firmata.sendPayloadSD();
+     Firmata.sendSamplingPacket();
   }
     
   Firmata.xbee.readPacket();

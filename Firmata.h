@@ -1,4 +1,4 @@
-/*
+    /*
   Firmata.h - Firmata library v2.4.0 - 2014-12-21
   Copyright (C) 2006-2008 Hans-Christoph Steiner.  All rights reserved.
 
@@ -113,7 +113,6 @@ public:
   //uint8_t payload[300];
   uint8_t payload[10][100];
   uint8_t samplingPacket[10][120];
-  uint8_t contPayload;   //initialized in begin(void)
   uint8_t numPayloadSD;
   uint8_t numPayloadsCounter;
 

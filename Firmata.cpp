@@ -77,7 +77,6 @@ void FirmataClass::begin(void)  //***long speed
   //FirmataStream = &Serial; //***
   blinkVersion();
   flagStreaming=1;
-  contPayload=0;
   numPayloads=0;
   samplesCount=0;
   numberChannels=0;
@@ -378,8 +377,58 @@ void FirmataClass::sendAnalog(byte pin, int value)
 }
 
 void FirmataClass::sendSamplingPacket(void){
-    bool firstPacket=true;
+    //numPayloads=((numberChannels*samplesCount*2+8)%lengthPayload);
+    /*byte contPayload=0;
+    byte contSamplesPayload=0;
+    uint16_t totalSamplesStored=0;
 
+    payload[0][0]=START_SYSEX;
+    payload[0][1]=SAMPLES_PACKET;
+    payload[0][2]=samplesCount;         //!!!!!!!!!!!!hay que enviar el número de paquetes para parsear en Node.js, hazlo aquí
+    payload[0][3]=(year()&0x0F);
+    payload[0][4]=month();
+    payload[0][5]=day();
+    payload[0][6]=hour();
+    payload[0][7]=minute();
+    payload[0][8]=second();
+    totalSamplesStored=9;
+
+    for (byte typesCounter=3;typesCounter>0;typesCounter--){
+        for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
+            for (byte samplesCounter=0;samplesCounter<contSamplesStored[typesCounter][channelsCounter];samplesCounter++){
+                    if (samplesCounter==0) {                                        //first byte contains pin info
+                          Serial.println("first sample");
+                          totalSamplesStored+=contSamplesStored[typesCounter][channelsCounter];
+                          switch (typesCounter){
+                              case 1:                                                     //digital channels
+                              payload[contPayload][samplesCount++]=DIGITAL_MESSAGE | (samplesPacket[typesCounter][channelsCounter][samplesCounter] & 0x0F);  //DIGITAL_MESSAGE | (portNumber & 0xF)
+                              break;
+                              case 2:                                                     //analog channel
+                              payload[contPayload][samplesCount++]=(ANALOG_MESSAGE | (samplesPacket[typesCounter][channelsCounter][samplesCounter] & 0xF));
+                              break;
+                          }
+                      }
+                      payload[contPayload][samplesCount++]=samplesPacket[typesCounter][channelsCounter][samplesCounter];
+                      if (samplesCount==100 || samplesCount==totalSamplesStored){
+                        Serial.println("last sample for one packet");
+                        payload[contPayload][samplesCount]=END_SYSEX;
+                        contPayload++;
+                      }
+            }
+        }
+    }
+     for (byte typesCounter=3;typesCounter>0;typesCounter--){
+            for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
+                free (samplesPacket[typesCounter][channelsCounter]);
+            }
+        }
+    for(byte contPayloadToSend=0;contPayloadToSend<=contPayload;contPayloadToSend++){
+        if (contPayloadToSend==contPayload) lengthPayload=totalSamplesStored-100*contPayload;
+        else lengthPayload=100;
+            tx64 = Tx64Request(addr64, payload[contPayloadToSend], lengthPayload);
+            xbee.send(tx64);
+    }
+*/
 }
      //Serial.println("##sPRINTING--GayLorzas##");
      /*for (byte k=0;k<=numPayloads;k++){
@@ -521,12 +570,14 @@ int FirmataClass::storeDigitalPort(byte portNumber, int portData){
 }*/
 
 int FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
-    bool channelStoredBefore=false;
+    /*bool channelStoredBefore=false;
     if (firstSample[type]==true){
         firstSample[type]=false;
         contChannels[type]=1;
         if (!samplePacketInitialiced){
-                    samplesPacket=(uint8_t***)calloc(((numberChannels*samplesCount*2)+(numberChannels)), sizeof(uint8_t)); //reservar memoria para 2 bytes por muestra y una de número canal
+                   // samplesPacket=(uint8_t***)calloc(((numberChannels*samplesCount*2)+(numberChannels)), sizeof(uint8_t)); //reservar memoria para 2 bytes por muestra y una de número canal
+                    Serial.print("sizeof(samplesPacket)  :");
+                    Serial.println(sizeof(samplesPacket));
                     samplePacketInitialiced=true;
                     }
         samplesPacket[type][0][0]=pin;
@@ -555,9 +606,9 @@ int FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
                        contSamplesStored[2][channelNumber]+=2;
                     }
                 }
-    }
+    }*/
 }
-//contSamplesStored[3][TOTAL_PINS];
+
 
 void FirmataClass::sendSysex(byte command, byte bytec, byte *bytev)
 {
