@@ -124,10 +124,9 @@ public:
   uint16_t numberChannels;
   uint16_t totalSamples;
   uint8_t lengthPayload;
-  uint8_t numPayloads;
 
-  //uint8_t ***samplesPacket;
-  uint8_t samplesPacket[4][2][50];
+  uint8_t ***samplesPacket;
+ // uint8_t samplesPacket[4][2][50];
  // uint8_t *channels;
   byte prevChannels[TOTAL_PINS];
   uint16_t contSamplesStored[4][TOTAL_PINS];  //[typeSample]x[channels]

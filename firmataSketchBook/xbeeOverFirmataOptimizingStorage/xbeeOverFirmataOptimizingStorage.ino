@@ -210,13 +210,11 @@ void setPinModeCallback(byte pin, int mode)
         if (!(portConfigInputs[pin / 8] & (1 << (pin & 7)))) Firmata.numberChannels++;
       portConfigInputs[pin / 8] |= (1 << (pin & 7));      
         Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
-        Firmata.numPayloads=(Firmata.totalSamples/30);
         Serial.print("Firmata.numberChannels  ");
         Serial.println(Firmata.numberChannels);
         Serial.print("Firmata.totalSamples  ");
         Serial.println(Firmata.totalSamples);
-        Serial.print("Firmata.numPayloads  ");
-        Serial.println(Firmata.numPayloads);
+        Firmata.samplePacketInitialiced=false;
     } else {
       portConfigInputs[pin / 8] &= ~(1 << (pin & 7));
     }
@@ -326,19 +324,17 @@ void reportAnalogCallback(byte analogPin, int value)
      // Serial.println("configuring pin to reportAnalog ");
       if (!(analogInputsToReport & (1 << analogPin))) Firmata.numberChannels++;
       Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
-      Firmata.numPayloads=(Firmata.totalSamples/30);
      Serial.print("Firmata.numberChannels  ");
       Serial.println(Firmata.numberChannels);
       Serial.print("Firmata.totalSamples  ");
       Serial.println(Firmata.totalSamples);
-      Serial.print("Firmata.numPayloads  ");
-      Serial.println(Firmata.numPayloads);
       //Firmata.sendString("reportAnalogCallback");
       analogInputsToReport = analogInputsToReport | (1 << analogPin);
       // Send pin value immediately. This is helpful when connected via
       // ethernet, wi-fi or bluetooth so pin states can be known upon
       // reconnecting.
       Firmata.sendAnalog(analogPin, analogRead(analogPin));
+      Firmata.samplePacketInitialiced=false;
     }
   }
   // TODO: save status to EEPROM here, if changed
@@ -754,7 +750,7 @@ void loop()
   
   currentMillis = millis();
   
-  if ((currentMillis - previousMillis2) > deliveryInterval && Firmata.flagStreaming==0 && Firmata.readyToSend==true){ //enviar paquetes almacenados mientras tanto
+  if ((currentMillis - previousMillis2) > deliveryInterval && Firmata.flagStreaming==0 /*&& Firmata.readyToSend==true*/){ //enviar paquetes almacenados mientras tanto
     previousMillis2+=deliveryInterval;
     /*if(Firmata.sendFile());
     else Firmata.sendPayloadSD();*/
