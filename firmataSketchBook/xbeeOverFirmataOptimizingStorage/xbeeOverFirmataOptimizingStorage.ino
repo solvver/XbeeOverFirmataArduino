@@ -206,21 +206,12 @@ void setPinModeCallback(byte pin, int mode)
       //Serial.println("Configuring input digital pin");
         if (!(portConfigInputs[pin / 8] & (1 << (pin & 7)))) Firmata.numberChannels++;
       portConfigInputs[pin / 8] |= (1 << (pin & 7));      
-<<<<<<< HEAD
        // Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
         Serial.print("Firmata.numberChannels  ");
         Serial.println(Firmata.numberChannels);
         Serial.print("Firmata.samplesCount  ");
         Serial.println(Firmata.samplesCount);
         Firmata.samplePacketInitialiced[1]=false;
-=======
-        Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
-        Serial.print("Firmata.numberChannels  ");
-        Serial.println(Firmata.numberChannels);
-        Serial.print("Firmata.totalSamples  ");
-        Serial.println(Firmata.totalSamples);
-        Firmata.samplePacketInitialiced=false;
->>>>>>> 67fc7ca6924c7df5cb77e49a12912785fad52fb3
     } else {
       portConfigInputs[pin / 8] &= ~(1 << (pin & 7));
     }
@@ -329,30 +320,18 @@ void reportAnalogCallback(byte analogPin, int value)
     } else {
      // Serial.println("configuring pin to reportAnalog ");
       if (!(analogInputsToReport & (1 << analogPin))) Firmata.numberChannels++;
-<<<<<<< HEAD
       //Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
      Serial.print("Firmata.numberChannels  ");
       Serial.println(Firmata.numberChannels);
       Serial.print("Firmata.samplesCount  ");
       Serial.println(Firmata.samplesCount);
-=======
-      Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
-     Serial.print("Firmata.numberChannels  ");
-      Serial.println(Firmata.numberChannels);
-      Serial.print("Firmata.totalSamples  ");
-      Serial.println(Firmata.totalSamples);
->>>>>>> 67fc7ca6924c7df5cb77e49a12912785fad52fb3
       //Firmata.sendString("reportAnalogCallback");
       analogInputsToReport = analogInputsToReport | (1 << analogPin);
       // Send pin value immediately. This is helpful when connected via
       // ethernet, wi-fi or bluetooth so pin states can be known upon
       // reconnecting.
       Firmata.sendAnalog(analogPin, analogRead(analogPin));
-<<<<<<< HEAD
       Firmata.samplePacketInitialiced[2]=false;
-=======
-      Firmata.samplePacketInitialiced=false;
->>>>>>> 67fc7ca6924c7df5cb77e49a12912785fad52fb3
     }
   }
   // TODO: save status to EEPROM here, if changed
@@ -408,7 +387,8 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
       Serial.print("argv[0]");Serial.println(argv[0]);
       Serial.print("argv[1]");Serial.println(argv[1]);
       //setTime((argv[3]),(argv[4]),(argv[5]),(argv[2]),(argv[1]),(argv[0]+11));
-      setTime((argv[3]),(argv[4]),(argv[5]),(argv[2]),(argv[1]),(argv[0]));
+     // setTime((argv[3]),(argv[4]),(argv[5]),(argv[2]),(argv[1]),(argv[0]));
+       setTime();
       break;
     /*case I2C_REQUEST:
       mode = argv[1] & I2C_READ_WRITE_MODE_MASK;
