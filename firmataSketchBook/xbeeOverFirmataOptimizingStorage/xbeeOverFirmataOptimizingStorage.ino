@@ -14,14 +14,11 @@
   Copyright (C) 2010-2011 Paul Stoffregen.  All rights reserved.
   Copyright (C) 2009 Shigeru Kobayashi.  All rights reserved.
   Copyright (C) 2009-2014 Jeff Hoefs.  All rights reserved.
-
   This library is free software; you can redistribute it and/or
   modify it under the terms of the GNU Lesser General Public
   License as published by the Free Software Foundation; either
   version 2.1 of the License, or (at your option) any later version.
-
   See file LICENSE.txt for further informations on licensing terms.
-
   formatted using the GNU C formatting and indenting
 */
 
@@ -209,14 +206,12 @@ void setPinModeCallback(byte pin, int mode)
       //Serial.println("Configuring input digital pin");
         if (!(portConfigInputs[pin / 8] & (1 << (pin & 7)))) Firmata.numberChannels++;
       portConfigInputs[pin / 8] |= (1 << (pin & 7));      
-        Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
-        Firmata.numPayloads=(Firmata.totalSamples/30);
+       // Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
         Serial.print("Firmata.numberChannels  ");
         Serial.println(Firmata.numberChannels);
-        Serial.print("Firmata.totalSamples  ");
-        Serial.println(Firmata.totalSamples);
-        Serial.print("Firmata.numPayloads  ");
-        Serial.println(Firmata.numPayloads);
+        Serial.print("Firmata.samplesCount  ");
+        Serial.println(Firmata.samplesCount);
+        Firmata.samplePacketInitialiced[1]=false;
     } else {
       portConfigInputs[pin / 8] &= ~(1 << (pin & 7));
     }
@@ -325,20 +320,18 @@ void reportAnalogCallback(byte analogPin, int value)
     } else {
      // Serial.println("configuring pin to reportAnalog ");
       if (!(analogInputsToReport & (1 << analogPin))) Firmata.numberChannels++;
-      Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
-      Firmata.numPayloads=(Firmata.totalSamples/30);
+      //Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
      Serial.print("Firmata.numberChannels  ");
       Serial.println(Firmata.numberChannels);
-      Serial.print("Firmata.totalSamples  ");
-      Serial.println(Firmata.totalSamples);
-      Serial.print("Firmata.numPayloads  ");
-      Serial.println(Firmata.numPayloads);
+      Serial.print("Firmata.samplesCount  ");
+      Serial.println(Firmata.samplesCount);
       //Firmata.sendString("reportAnalogCallback");
       analogInputsToReport = analogInputsToReport | (1 << analogPin);
       // Send pin value immediately. This is helpful when connected via
       // ethernet, wi-fi or bluetooth so pin states can be known upon
       // reconnecting.
       Firmata.sendAnalog(analogPin, analogRead(analogPin));
+      Firmata.samplePacketInitialiced[2]=false;
     }
   }
   // TODO: save status to EEPROM here, if changed
@@ -389,8 +382,11 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
 
   switch (command) {
       case SET_TIME:
-      //Serial.println("SETTimeSETTimeSETTimeSETTimeSETTime");
+      Serial.println("SETTimeSETTimeSETTimeSETTimeSETTime");
       //setTime((argv[3]-16),(argv[4]-16),(argv[5]-16),(argv[2]-16),(argv[1]-16),(argv[0]-16));
+      Serial.print("argv[0]");Serial.println(argv[0]);
+      Serial.print("argv[1]");Serial.println(argv[1]);
+      //setTime((argv[3]),(argv[4]),(argv[5]),(argv[2]),(argv[1]),(argv[0]+11));
       setTime((argv[3]),(argv[4]),(argv[5]),(argv[2]),(argv[1]),(argv[0]));
       break;
     /*case I2C_REQUEST:
@@ -402,7 +398,6 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
       else {
         slaveAddress = argv[0];
       }
-
       switch (mode) {
         case I2C_WRITE:
           Wire.beginTransmission(slaveAddress);
@@ -467,7 +462,6 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
                 break;
               }
             }
-
             for (byte i = queryIndexToSkip; i < queryIndex + 1; i++) {
               if (i < MAX_QUERIES) {
                 query[i].addr = query[i + 1].addr;
@@ -484,32 +478,23 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
       break;
     case I2C_CONFIG:
       delayTime = (argv[0] + (argv[1] << 7));
-
       if (delayTime > 0) {
         i2cReadDelayTime = delayTime;
       }
-
       if (!isI2CEnabled) {
         enableI2CPins();
       }
-
       break;*/
     case SAMPLING_INTERVAL:  //OK
       Serial.print("sampling interval  ");
-      if (argc > 1) {
-        //if (argv[1]!=0){
+      if (argc > 0) {
           samplingInterval = (argv[0] + (argv[1] << 8)); //***-7=>+8
-        /*} else {
-          samplingInterval=argv[0];
-        }*/
-        Serial.println(samplingInterval);
+          Serial.println(samplingInterval);
         if (samplingInterval < MINIMUM_SAMPLING_INTERVAL) {
           samplingInterval = MINIMUM_SAMPLING_INTERVAL;
         }
-      } else {
-        //Firmata.sendString("Not enough data");
-      }
-      break;
+      } 
+     break;
     case DELIVERY_INTERVAL:  //***
     Serial.print("DELIVERY_INTERVAL");
       if (argc > 1) {
@@ -521,10 +506,7 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
           deliveryInterval = ((argv[0]<< 8) + (argv[1]));
         }
         previousMillis2=deliveryInterval;
-        Serial.println(deliveryInterval);
-       // Firmata.sendString("DELIVERY_INTERVAL");
-       // Serial.print("Delivery interval value:   ");
-       //Serial.println(deliveryInterval);
+        Serial.print(deliveryInterval);
         if (deliveryInterval < MINIMUM_DELIVERY_INTERVAL) {
           deliveryInterval = MINIMUM_DELIVERY_INTERVAL;
         }
@@ -534,6 +516,8 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
         else {*/
           Firmata.flagStreaming=0;
           Firmata.samplesCount=(deliveryInterval/samplingInterval);
+          Serial.print("   ");
+          Serial.println(Firmata.samplesCount);
         //}
       }
       break;
@@ -691,7 +675,6 @@ void systemResetCallback()
       // sets the output to 0, configures portConfigInputs
       setPinModeCallback(i, OUTPUT);
     }
-
   }*/
   for(byte k=0;k<11;k++){
     for(byte i=0;i<100;i++){

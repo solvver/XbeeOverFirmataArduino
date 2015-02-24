@@ -77,19 +77,18 @@ void FirmataClass::begin(void)  //***long speed
   //FirmataStream = &Serial; //***
   blinkVersion();
   flagStreaming=1;
-  numPayloads=0;
   samplesCount=0;
   numberChannels=0;
   lengthPayload=90;
   numPayloadsCounter=0;
-  samplePacketInitialiced=0;
   readyToSend=false;
-  for (byte k=1;k<4;k++){
-    firstSample[k]=true;
-    contChannels[k]=0;
+  for (byte channelsCounter=1;channelsCounter<4;channelsCounter++){
+    firstSample[channelsCounter]=true;
+    contChannels[channelsCounter]=0;
+    samplePacketInitialiced[channelsCounter]=0;
     for (byte i=0;i<=TOTAL_PINS;i++){
-                  contSamplesStored[k][i]=1;
-                  samplesCountPerChannel[k][i]=0;
+                  contSamplesStored[channelsCounter][i]=1;
+                  samplesCountPerChannel[channelsCounter][i]=0;
        }
    }
    //printVersion();    //***
@@ -385,30 +384,40 @@ void FirmataClass::sendSamplingPacket(void){
     readyToSend=false;
     byte contPayload=0;
     byte contSamplesPayload=0;
-    byte channelsCounterToInit=0;
     uint16_t totalSamplesStored=0;
     uint16_t samplesCountToSend=9;
 
     payload[0][0]=START_SYSEX;
     payload[0][1]=SAMPLES_PACKET;
     payload[0][2]=samplesCount;         //!!!!!!!!!!!!hay que enviar el número de paquetes para parsear en Node.js, hazlo aquí
-    payload[0][3]=(year()&0x0F);
-    payload[0][4]=month();
-    payload[0][5]=day();
-    payload[0][6]=hour();
-    payload[0][7]=minute();
-    payload[0][8]=second();
-    totalSamplesStored=9;
+    payload[0][3]=numberChannels;
+    payload[0][4]=0;
+    payload[0][5]=(year()&0x0F);
+    payload[0][6]=month();
+    payload[0][7]=day();
+    payload[0][8]=hour();
+    payload[0][9]=minute();
+    payload[0][10]=second();
+    samplesCountToSend=11;
+
+
+     for (byte typesCounter=3;typesCounter>0;typesCounter--){
+            for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
+                totalSamplesStored+=contSamplesStored[typesCounter][channelsCounter];
+                }
+        }
 
     for (byte typesCounter=3;typesCounter>0;typesCounter--){
         for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
+            //totalSamplesStored+=contSamplesStored[typesCounter][channelsCounter];
             for (byte samplesCounter=0;samplesCounter<contSamplesStored[typesCounter][channelsCounter];samplesCounter++){
+                    //Serial.print("byte to store:  ");
+                    //Serial.println(samplesPacket[typesCounter][channelsCounter][samplesCounter], HEX);
                     if (samplesCounter==0) {                                        //first byte contains pin info
                          /* Serial.println("**first sample-->");
                           Serial.print("contSamplesStored[typesCounter][channelsCounter]");
                           Serial.println(contSamplesStored[typesCounter][channelsCounter]);*/
-                          totalSamplesStored+=contSamplesStored[typesCounter][channelsCounter];
-                         /* Serial.print("totalSamplesStored");
+                          /* Serial.print("totalSamplesStored");
                           Serial.println(totalSamplesStored);*/
                           switch (typesCounter){
                               case 1:                                                     //digital channels
@@ -420,124 +429,58 @@ void FirmataClass::sendSamplingPacket(void){
                           }
                       }
                      if (samplesCounter!=0) payload[contPayload][samplesCountToSend++]=samplesPacket[typesCounter][channelsCounter][samplesCounter];
-                     /*  Serial.print("samplesCountToSend-->");
-                       Serial.println(samplesCountToSend);*/
-                      if (samplesCountToSend==(totalSamplesStored)){
-                        //Serial.println("**last sample for one packet-->");
+                      if (samplesCountToSend==(totalSamplesStored+11)){
+                       /*Serial.print("samplesCountToSend-->");
+                       Serial.print(samplesCountToSend);
+                       Serial.print("   totalSamplesStored-->");
+                       Serial.println(totalSamplesStored);*/
                         payload[contPayload][samplesCountToSend]=END_SYSEX;
                         totalSamplesStored++;
-                        samplesCountToSend=0;
                       }
                       if (samplesCountToSend==100) {
                         payload[contPayload][samplesCountToSend]=END_SYSEX;
-                        totalSamplesStored++;
+                        samplesCountToSend=0;
                         contPayload++;
+                        payload[contPayload][samplesCountToSend++]=START_SYSEX;
+                        totalSamplesStored+=2;
                       }
             }
         }
     }
+
      for (byte typesCounter=3;typesCounter>0;typesCounter--){
         firstSample[typesCounter]=true;
-        contChannels[typesCounter]=0;
-        channelsCounterToInit=0;
-            //for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
-            do {
-                  /* Serial.print("initializing to zero -->");
+        samplePacketInitialiced[typesCounter]=0;
+        free(samplesPacket[typesCounter]);
+           for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
+                 /* Serial.print("initializing to zero -->");
                    Serial.print("type-->");
                    Serial.print(typesCounter);*/
                    /* Serial.print("typesCounter:-->");
-                    Serial.println(typesCounter);
-                    Serial.print("channelsCounter:-->");
-                    Serial.println(channelsCounter);*/
+                    Serial.println(typesCounter);*/
                // free (samplesPacket[typesCounter][channelsCounter]);
-                contSamplesStored[typesCounter][channelsCounterToInit]=1;
+                samplesCountPerChannel[typesCounter][channelsCounter]=0;
+                contSamplesStored[typesCounter][channelsCounter]=1;
+                free(samplesPacket[typesCounter][channelsCounter]);
               /*  Serial.print("contSamplesStored[typesCounter][channelsCounter]-->:");
                                     Serial.println(contSamplesStored[typesCounter][channelsCounter]);*/
-            channelsCounterToInit++;
-            } while(channelsCounterToInit<contChannels[typesCounter]);
+            }
         }
+
+
+
     for(byte contPayloadToSend=0;contPayloadToSend<=contPayload;contPayloadToSend++){
-        if (contPayloadToSend==contPayload) lengthPayload=totalSamplesStored-100*contPayload;
+        if (contPayloadToSend==contPayload) {
+            lengthPayload=(totalSamplesStored-100*contPayload+11);
+            payload[0][4]=contPayload;
+        }
         else lengthPayload=100;
+            Serial.println("send packet");
             tx64 = Tx64Request(addr64, payload[contPayloadToSend], lengthPayload);
             xbee.send(tx64);
     }
-    samplePacketInitialiced=0;
-}
-     //Serial.println("##sPRINTING--GayLorzas##");
-     /*for (byte k=0;k<=numPayloads;k++){
-             // Serial.print("Numero");
-             // Serial.println(k);
-          if(k==numPayloads) {
-              //lengthPayload=(((samplesCount*numberChannels)%(30*numPayloads))*3)+9;
-              lengthPayload=(((totalSamples)%(30*numPayloads))*3)+9;
-          } else {
-              lengthPayload=99;
-          }
-         // Serial.print("lengthPayload  :");
-         // Serial.println(lengthPayload);
-          tx64 = Tx64Request(addr64, payload[k], lengthPayload);
-          xbee.send(tx64);
-         // Serial.println("");
-      }
-    numPayloadsCounter=0;
-    contPayload=0;*/
-
-/*in FirmataClass::storeAnalog(byte pin, int value)
-{
-    Serial.println("storeAnalog---><++");
-    Serial.println(hour());
-    firmataFile = FirmataSD.open("firmata.txt", FILE_WRITE);
-      if (firmataFile) {
-             firmataFile.print("analogChanel  ");
-             firmataFile.print(pin);
-             firmataFile.print(" , ");
-             firmataFile.println(value);
-             firmataFile.close();         // close the file:
-             return (true);
-           } else {
-            // if the file didn't open, print an error:
-            Serial.println("error opening test analog.txt");
-            return (false);
-          }
-}*/
-
-int FirmataClass::sendFile(void){
-    firmataFile = FirmataSD.open("firmata.txt", FILE_READ);
-         if (firmataFile) {
-           while (firmataFile.available()) {
-          	Serial.write(firmataFile.read());
-          }  firmataFile.close();
-          return(1);
-          }
-            else {
-        	// if the file didn't open, print an error:
-          Serial.println("error opening test send.txt");
-          return (0);
-        }
 }
 
-// send a single digital pin in a digital message
-void FirmataClass::sendDigital(byte pin, int value)
-{
-  /* TODO add single pin digital messages to the protocol, this needs to
-   * track the last digital data sent so that it can be sure to change just
-   * one bit in the packet.  This is complicated by the fact that the
-   * numbering of the pins will probably differ on Arduino, Wiring, and
-   * other boards.  The DIGITAL_MESSAGE sends 14 bits at a time, but it is
-   * probably easier to send 8 bit ports for any board with more than 14
-   * digital pins.
-   */
-
-  // TODO: the digital message should not be sent on the serial port every
-  // time sendDigital() is called.  Instead, it should add it to an int
-  // which will be sent on a schedule.  If a pin changes more than once
-  // before the digital message is sent on the serial port, it should send a
-  // digital message for each change.
-
-  //    if(value == 0)
-  //        sendDigitalPortPair();
-}
 
 
 // send 14-bits in a single digital message (protocol v1)
@@ -550,106 +493,39 @@ void FirmataClass::sendDigitalPort(byte portNumber, int portData)
  tx64 = Tx64Request(addr64, payload[0], 3);
  xbee.send(tx64);
 }
-/*
-int FirmataClass::storeDigitalPort(byte portNumber, int portData){
-    Serial.println("storeAnalog---><++");
-    firmataFile = FirmataSD.open("firmata.txt", FILE_WRITE);
-    if (firmataFile) {
-           firmataFile.print("digitalChanel  ");
-           firmataFile.print(portNumber);
-           firmataFile.print(" , ");
-           firmataFile.println(portData);
-           firmataFile.close();         // close the file:
-           return (true);
-         } else {
-          // if the file didn't open, print an error:
-          Serial.println("error opening test digital.txt");
-          return (false);
-        }
-}*/
 
-/*int FirmataClass::storeSamplingPacket(byte pin, int value, byte type){
-    // Serial.println("storeSamplingPacket  :");
-    //Firmata.sendString("arduino storing");
-    if(numPayloadsCounter==numPayloads){
-        lengthPayload=(((totalSamples)%(30*numPayloads))*3)+9;
-    } else {
-        lengthPayload=99;
-    }
-    if (contPayload<8){
-        payload[numPayloadsCounter][contPayload++]=START_SYSEX;
-        payload[numPayloadsCounter][contPayload++]=SAMPLES_PACKET;
-        payload[numPayloadsCounter][contPayload++]=(year()&0x0F);
-        payload[numPayloadsCounter][contPayload++]=month();
-        payload[numPayloadsCounter][contPayload++]=day();
-        payload[numPayloadsCounter][contPayload++]=hour();
-        payload[numPayloadsCounter][contPayload++]=minute();
-        payload[numPayloadsCounter][contPayload++]=second();
-    }
-    if(type==0x01){
-        payload[numPayloadsCounter][contPayload++]=(DIGITAL_MESSAGE | (pin & 0xF));
-        payload[numPayloadsCounter][contPayload++]=((byte)value % 128);
-        payload[numPayloadsCounter][contPayload++]=(value >> 7);
-    }
-    if(type==0x02){
-        payload[numPayloadsCounter][contPayload++]=(ANALOG_MESSAGE | (pin & 0xF));
-        sendValueAsTwo7bitBytesXbee(payload[numPayloadsCounter], contPayload, value);
-        contPayload+=2;
-    }
-    if(contPayload==(lengthPayload-1)){
-       payload[numPayloadsCounter][contPayload]=END_SYSEX;
-       contPayload=0;
-       numPayloadsCounter++;
-    }
-}*/
 
 int FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
     Serial.println("-->storeSamplingPacket");
     bool channelStoredBefore=false;
-   /* Serial.print("type  :");
-    Serial.println(type);
-    Serial.print("pin  :");
-    Serial.println(pin);*/
+    bool auxCheckReadyToSend=false;
+    readyToSend=true;
     if (firstSample[type]==true){
-        //Serial.println("-->first sample to store");
         firstSample[type]=false;
         contChannels[type]=1;
-        if (samplePacketInitialiced==0){
-                   /* Serial.println("initialicing samplespacket");
-                   // samplesPacket=(uint8_t***)calloc(((numberChannels*samplesCount*2)+(numberChannels)), sizeof(uint8_t)); //reservar memoria para 2 bytes por muestra y una de número canal
-                   // uint8_t*** samplesPacket;
-                   samplesPacket=(uint8_t ***)calloc(1, sizeof(uint8_t**));
-                    //samplesPacket=(uint8_t***)calloc((5), sizeof(uint8_t));
-                    samplesPacket[type]=(uint8_t **)calloc(1, sizeof(uint8_t*));
-                    //samplesPacket[type][(contChannels[type]-1)]=(uint8_t*)calloc(((samplesCount*2)+1), sizeof(uint8_t));
-                    samplesPacket[type][((contChannels[type])-1)]=(uint8_t*)calloc(5, sizeof(uint8_t));
-*/
-                    /*Serial.print("sizeof(samplesPacket[type][((contChannels[type])-1)])  :");
-                    Serial.println(sizeof(samplesPacket[type][((contChannels[type])-1)]));
-                    Serial.print("sizeof(samplesPacket[type])  :");
-                    Serial.println(sizeof(samplesPacket[type]));
-                    Serial.print("sizeof(samplesPacket)  :");
-                    Serial.println(sizeof(samplesPacket));*/
-                    samplePacketInitialiced=true;
+        if (samplePacketInitialiced[type]==0){
+                    samplesPacket=(uint8_t ***)calloc(4, sizeof(uint8_t**));
+                    samplesPacket[type]=(uint8_t **)calloc(numberChannels, sizeof(uint8_t*));
+                    samplesPacket[type][0]=(uint8_t*)malloc((((samplesCount*2)+1)*sizeof(uint8_t)));
+                    samplePacketInitialiced[type]=true;
                     }
         samplesPacket[type][0][0]=pin;
-        //Serial.print("samplesPacket[type][0][0]: ");
-        //Serial.println(samplesPacket[type][0][0]);
     } else {
         for (byte k=0;k<contChannels[type];k++){
-              Serial.print("-->k");Serial.print(k);
-              Serial.print("samplesPacket[type][k][0]");Serial.println(samplesPacket[type][k][0]);
+             /* Serial.print("-->channel :");Serial.print(k);
+              Serial.print("   -->pin :");Serial.print(pin);
+              Serial.print("   -->samplesPacket[type][k][0]:");Serial.println(samplesPacket[type][k][0]);*/
               if (pin==samplesPacket[type][k][0]) {
               channelStoredBefore=true;
-              Serial.println("######>channelStoredBefore");
+              //Serial.println("######>channelStoredBefore");
               }
           }
           if (channelStoredBefore==false) {
-            Serial.println("#####>storing sample for 1 channel for first time");
+            //Serial.println("#####>storing sample for 1 channel for first time");
+            samplesPacket[type][contChannels[type]]=(uint8_t*)calloc(((samplesCount*2)+1), sizeof(uint8_t));
             samplesPacket[type][contChannels[type]][0]=pin;
             contChannels[type]++;
             }
-
     }
     if (type==1){
         for (byte channelNumber=0;channelNumber<contChannels[type];channelNumber++){
@@ -662,10 +538,9 @@ int FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
           for (byte channelNumber=0;channelNumber<contChannels[type];channelNumber++){
                     if (pin==samplesPacket[2][channelNumber][0]){
                        samplesCountPerChannel[2][channelNumber]++;
-                       // Serial.print("-->storing one analog sample of the channel");
-                       // Serial.println(channelNumber);
-                       // samplesPacket[2][channelNumber][contSamplesStored[2][channelNumber]++]=((uint8_t)value % 128);
-                       // samplesPacket[2][channelNumber][contSamplesStored[2][channelNumber]++]=(value >> 7);
+                       /*Serial.print("Store analog");Serial.print("  channel:  ");Serial.print(channelNumber);
+                       Serial.print("  samplesCountPerChannel:  ");Serial.print(samplesCountPerChannel[2][channelNumber]);
+                       Serial.print("  channelCountPerType:  ");Serial.println(contChannels[type]);*/
                        sendValueAsTwo7bitBytesXbee(samplesPacket[2][channelNumber], contSamplesStored[2][channelNumber], value);
                        contSamplesStored[2][channelNumber]+=2;
                     }
@@ -674,18 +549,20 @@ int FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
 
          for (byte typesCounter=3;typesCounter>0;typesCounter--){
                 for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
+                   //Serial.println("++++checking readyToSend");
                    if(samplesCountPerChannel[typesCounter][channelsCounter]>=samplesCount){
-                    Serial.println("++++checking readyToSend");
-                    readyToSend=true;
-                   } else readyToSend=false;
+                   Serial.println("true1");
+                   auxCheckReadyToSend=true;
+                   readyToSend=(readyToSend & auxCheckReadyToSend);
+                   } else {
+                   auxCheckReadyToSend=false;
+                   readyToSend=(readyToSend & auxCheckReadyToSend);
+                   //Serial.println("false");
+                   }
                 }
             }
     //++++++++++++++++++++++++
-    Serial.println(" -->print sample packet:");
-     for (byte typesCounter=3;typesCounter>0;typesCounter--){
-        Serial.print("   -->typesCounter"); Serial.println(typesCounter);
-        Serial.print("   -->contChannels[typesCounter]:");
-        Serial.println(contChannels[typesCounter]);
+   /*.println(contChannels[typesCounter]);
             for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
                 Serial.print("   -->contSamplesStored[typesCounter][channelsCounter]:");
                  Serial.println(contSamplesStored[typesCounter][channelsCounter]);
@@ -694,7 +571,7 @@ int FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
                    Serial.println(samplesPacket[typesCounter][channelsCounter][samplesCounter]);
                    }
             }
-        }
+        }*/
 
 }
 
