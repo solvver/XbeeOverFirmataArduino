@@ -382,13 +382,14 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
 
   switch (command) {
       case SET_TIME:
-      Serial.println("SETTimeSETTimeSETTimeSETTimeSETTime");
+      Serial.println("SET_TIME");
+      //Serial.println("SETTimeSETTimeSETTimeSETTimeSETTime");
       //setTime((argv[3]-16),(argv[4]-16),(argv[5]-16),(argv[2]-16),(argv[1]-16),(argv[0]-16));
-      Serial.print("argv[0]");Serial.println(argv[0]);
-      Serial.print("argv[1]");Serial.println(argv[1]);
-      //setTime((argv[3]),(argv[4]),(argv[5]),(argv[2]),(argv[1]),(argv[0]+11));
+      for(byte k=0;k<6;k++){
+        Serial.print("argv ");Serial.print(k);Serial.print("  ");Serial.println(argv[k]);
+      }
+      setTime((argv[3]),(argv[4]),(argv[5]),(argv[2]),(argv[1]),(argv[0]));
      // setTime((argv[3]),(argv[4]),(argv[5]),(argv[2]),(argv[1]),(argv[0]));
-       setTime();
       break;
     /*case I2C_REQUEST:
       mode = argv[1] & I2C_READ_WRITE_MODE_MASK;
@@ -488,13 +489,16 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
       break;*/
     case SAMPLING_INTERVAL:  //OK
       Serial.print("sampling interval  ");
-      if (argc > 0) {
+      if (argc > 1) {
           samplingInterval = (argv[0] + (argv[1] << 8)); //***-7=>+8
-          Serial.println(samplingInterval);
+          
         if (samplingInterval < MINIMUM_SAMPLING_INTERVAL) {
           samplingInterval = MINIMUM_SAMPLING_INTERVAL;
         }
-      } 
+      } else if (argc==1){
+        samplingInterval = (argv[0]);
+      }
+      Serial.println(samplingInterval);
      break;
     case DELIVERY_INTERVAL:  //***
     Serial.print("DELIVERY_INTERVAL");
@@ -655,17 +659,17 @@ void systemResetCallback()
 {
   Serial.println("SystemResetCallback");
   // initialize a defalt state
-  // TODO: option to load config from EEPROM instead of default
-  if (isI2CEnabled) {
-    disableI2CPins();
-  }
+  currentMillis=0;        // store the current value from millis()
+  previousMillis=0;       // for comparison with currentMillis
+  previousMillis2=0;      // same as currentMillis. Used with deliveryInterval
+  samplingInterval = 19;          // how often to run the main loop (in ms)
+  deliveryInterval = 0;
 
   for (byte i = 0; i < TOTAL_PORTS; i++) {
     reportPINs[i] = false;      // by default, reporting off
     portConfigInputs[i] = 0;  // until activated
     previousPINs[i] = 0;
   }
-
   /*for (byte i = 0; i < TOTAL_PINS; i++) {
     // pins with analog capability default to analog input
     // otherwise, pins default to digital output
@@ -677,28 +681,18 @@ void systemResetCallback()
       setPinModeCallback(i, OUTPUT);
     }
   }*/
-  for(byte k=0;k<11;k++){
-    for(byte i=0;i<100;i++){
-      Firmata.payload[k][i]=0;
-    }
-  }
+  
   // by default, do not report any analog inputs
   analogInputsToReport = 0;
   //reset Firmata's variables
+  for (byte typesCounter=3;typesCounter>0;typesCounter--){
+        free((uint8_t*)Firmata.samplesPacket[typesCounter]);
+           for (byte channelsCounter=0;channelsCounter<Firmata.contChannels[typesCounter];channelsCounter++){
+                free((uint8_t**)Firmata.samplesPacket[typesCounter][channelsCounter]);
+            }
+        }
+     free((uint8_t***)Firmata.samplesPacket);
   Firmata.begin();
-  //delay(100);
-  //reset time variables
-  //previousMillis=millis();
-  //previousMillis2=millis();
-  /* send digital inputs to set the initial state on the host computer,
-   * since once in the loop(), this firmware will only send on change */
-  /*
-  TODO: this can never execute, since no pins default to digital input
-        but it will be needed when/if we support EEPROM stored config
-  for (byte i=0; i < TOTAL_PORTS; i++) {
-    outputPort(i, readPort(i, portConfigInputs[i]), true);
-  }
-  */
 }
 
 void setup()
@@ -738,7 +732,7 @@ void loop()
   
   currentMillis = millis();
   
-  if ((currentMillis - previousMillis2) > deliveryInterval && Firmata.flagStreaming==0 /*&& Firmata.readyToSend==true*/){ //enviar paquetes almacenados mientras tanto
+  if ((currentMillis - previousMillis2) > deliveryInterval && Firmata.flagStreaming==0 && Firmata.readyToSend==true){ //enviar paquetes almacenados mientras tanto
     previousMillis2+=deliveryInterval;
     /*if(Firmata.sendFile());
     else Firmata.sendPayloadSD();*/
@@ -759,9 +753,7 @@ void loop()
 
   /* SERIALREAD - processing incoming messagse as soon as possible, while still
    * checking digital inputs.  */
-  /*while (Firmata.available())
-    Firmata.processInput();*/
-  
+    
    if (Firmata.xbee.getResponse().isAvailable()){
           //Serial.println("#######_AVAILABLE_########");
           if (Firmata.xbee.getResponse().getApiId() ==TX_STATUS_RESPONSE ) {
@@ -779,8 +771,8 @@ void loop()
                 option = Firmata.rx64.getOption();
                 
                 for(contDataRx=0;contDataRx<(((Firmata.xbee.getResponse().getMsbLength()<<8)+Firmata.xbee.getResponse().getLsbLength())-11);contDataRx++){
-               // Serial.print("Data to process:  ");
-               // Serial.println(Firmata.rx64.getData(contDataRx), HEX);
+                //Serial.print("Data to process:  ");
+                //Serial.println(Firmata.rx64.getData(contDataRx), HEX);
                 Firmata.processInput(Firmata.rx64.getData(contDataRx));
               }  
         }
@@ -796,13 +788,10 @@ void loop()
       if (Firmata.flagStreaming==0 && (portConfigInputs[pin / 8] & (1 << (pin & 7)))) {
           portValue = (readPort((pin/8), portConfigInputs[pin/8])) & portConfigInputs[pin / 8];
           Firmata.storeSamplingPacket(pin, portValue, 0x01);
-      }
-      //if (!Firmata.flagStreaming) checkDigitalInputs();      
+      }     
       if (IS_PIN_ANALOG(pin) && pinConfig[pin] == ANALOG) {
         analogPin = PIN_TO_ANALOG(pin);
         if (analogInputsToReport & (1 << analogPin)) {
-         // Serial.print("Checking analog pin");
-         // Serial.println(pin);
           if(Firmata.flagStreaming==1){
             Firmata.sendAnalog(analogPin, analogRead(analogPin));
             }  else {  //store error

@@ -132,7 +132,9 @@ public:
   byte contChannels[4];
   bool firstSample[4];
   bool samplePacketInitialiced[4];
+  bool samplePacketInitialicedMasterPointer;
   bool readyToSend;
+  uint16_t counterToDelete;
 
   Rx64Response rx64;//***
   XBeeAddress64 rx64Address;
@@ -172,7 +174,7 @@ public:
   /*SD functions*/
   //int storeDigitalPort(byte portNumber, int portData);
   //int storeAnalog(byte pin, int value);
-  int storeSamplingPacket(uint8_t pin, int value, byte type);
+  void storeSamplingPacket(uint8_t pin, int value, byte type);
   int sendFile(void);
   void sendSamplingPacket(void);
 
