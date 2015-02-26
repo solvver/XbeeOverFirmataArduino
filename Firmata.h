@@ -133,7 +133,7 @@ public:
   byte contChannels[4];
   bool firstSample[4];
   bool samplePacketInitialiced[4];
-  bool samplePacketInitialicedMasterPointer;
+  bool samplePacketInitialicedTypeZero;
   bool readyToSend;
   uint16_t counterToDelete;
 
@@ -177,6 +177,7 @@ public:
   //int storeDigitalPort(byte portNumber, int portData);
   //int storeAnalog(byte pin, int value);
   void storeSamplingPacket(uint8_t pin, int value, byte type);
+  void storePacketInSD();
   int sendFile(void);
   void sendSamplingPacket(void);
 

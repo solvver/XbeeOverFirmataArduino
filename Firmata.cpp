@@ -84,7 +84,7 @@ void FirmataClass::begin(void)  //***long speed
   lengthPayload=90;
   numPayloadsCounter=0;
   readyToSend=false;
-  //samplePacketInitialicedMasterPointer=false;
+  //samplePacketInitialicedTypeZero=false;
   for (byte channelsCounter=1;channelsCounter<4;channelsCounter++){
     firstSample[channelsCounter]=true;
     contChannels[channelsCounter]=0;
@@ -389,14 +389,82 @@ void FirmataClass::sendAnalog(byte pin, int value)
   //sendValueAsTwo7bitBytes(value);
 }
 
+/*void FirmataClass::storePacketInSD(){
+    firmataFile = FirmataSD.open("firmata.txt", FILE_WRITE);
+    //       firmataFile.print("digitalChanel  ");
+
+        //readyToSend=false;
+        byte contPayload=0;
+        uint16_t totalSamplesStored=0;
+        uint16_t samplesCountToSend;
+
+        payload[0][0]=START_SYSEX;
+        payload[0][1]=SAMPLES_PACKET;
+        payload[0][2]=samplesCount;
+        payload[0][3]=numberChannels;
+        payload[0][4]=0;
+        payload[0][5]=(year()&0x0F);
+        payload[0][6]=month();
+        payload[0][7]=day();
+        payload[0][8]=hour();
+        payload[0][9]=minute();
+        payload[0][10]=second();
+        samplesCountToSend=11;
+
+    if (firmataFile) {
+             for (byte typesCounter=3;typesCounter>0;typesCounter--){
+                    for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
+                        for (byte samplesCounter=0;samplesCounter<contSamplesStored[typesCounter][channelsCounter];samplesCounter++){
+                            if (samplesCounter==0) {                                        //first byte contains pin info
+                                  switch (typesCounter){
+                                      case 1:                                                     //digital channels
+                                      payload[contPayload][samplesCountToSend++]=DIGITAL_MESSAGE | (samplesPacket[typesCounter][channelsCounter][samplesCounter] & 0x0F);  //DIGITAL_MESSAGE | (portNumber & 0xF)
+                                      break;
+                                      case 2:                                                     //analog channel
+                                      payload[contPayload][samplesCountToSend++]=(ANALOG_MESSAGE | (samplesPacket[typesCounter][channelsCounter][samplesCounter] & 0xF));
+                                      break;
+                                  }
+                              }
+                             if (samplesCounter!=0) payload[contPayload][samplesCountToSend++]=samplesPacket[typesCounter][channelsCounter][samplesCounter];
+                             if (samplesCountToSend==(totalSamplesStored+11)){
+                                 payload[contPayload][samplesCountToSend]=END_SYSEX;
+                                 totalSamplesStored++;
+                              }
+                             if (samplesCountToSend==100) {
+                                payload[contPayload][samplesCountToSend]=END_SYSEX;
+                                samplesCountToSend=0;
+                                contPayload++;
+                                payload[contPayload][samplesCountToSend++]=START_SYSEX;
+                                totalSamplesStored+=2;
+                              }
+                        }
+                    }
+                }
+     } else {
+     return (false);
+     }
+}*/
+
 void FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
     bool channelStoredBefore=false;
     bool auxCheckReadyToSend=false;
     readyToSend=true;
-    /*if (samplePacketInitialicedMasterPointer==false) {
-        samplesPacket=(uint8_t ***)calloc(4, sizeof(uint8_t**));
-        samplePacketInitialicedMasterPointer=true;
-    }*/
+    if (samplePacketInitialicedTypeZero==false) {
+        //samplesPacket=(uint8_t ***)calloc(4, sizeof(uint8_t**));
+            samplesPacket[0]=(uint8_t **)calloc(numberChannels, sizeof(uint8_t*));
+            samplesPacket[0][0]=(uint8_t*)calloc(8, sizeof(uint8_t));
+
+            samplesPacket[0][0][0]=samplesCount;
+            samplesPacket[0][0][1]=numberChannels;
+            samplesPacket[0][0][2]=(year()&0x0F);
+            samplesPacket[0][0][3]=month();
+            samplesPacket[0][0][4]=day();
+            samplesPacket[0][0][5]=hour();
+            samplesPacket[0][0][6]=minute();
+            samplesPacket[0][0][7]=second();
+            contSamplesStored[0][0]=8;
+      //  samplePacketInitialicedTypeZero=true;
+    }
     if (firstSample[type]==true){
         firstSample[type]=false;
         contChannels[type]=1;
@@ -451,7 +519,7 @@ void FirmataClass::sendSamplingPacket(void){
     readyToSend=false;
     byte contPayload=0;
     uint16_t totalSamplesStored=0;
-    uint16_t samplesCountToSend;
+    uint16_t samplesCountToSend=0;
 
     payload[0][0]=START_SYSEX;
     payload[0][1]=SAMPLES_PACKET;
@@ -464,7 +532,7 @@ void FirmataClass::sendSamplingPacket(void){
     payload[0][8]=hour();
     payload[0][9]=minute();
     payload[0][10]=second();
-    samplesCountToSend=11;
+    //samplesCountToSend=11;
 
      for (byte typesCounter=3;typesCounter>0;typesCounter--){
             for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
@@ -472,10 +540,11 @@ void FirmataClass::sendSamplingPacket(void){
                 }
         }
 
-    for (byte typesCounter=3;typesCounter>0;typesCounter--){
+    for (byte typesCounter=0;typesCounter<4;typesCounter--){
         for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
             for (byte samplesCounter=0;samplesCounter<contSamplesStored[typesCounter][channelsCounter];samplesCounter++){
-                    if (samplesCounter==0) {                                        //first byte contains pin info
+                    if (typesCounter==0 && samplesCounter==4) samplesCounter++;
+                    if (samplesCounter==0 && typesCounter>0) {                                        //first byte contains pin info
                           switch (typesCounter){
                               case 1:                                                     //digital channels
                               payload[contPayload][samplesCountToSend++]=DIGITAL_MESSAGE | (samplesPacket[typesCounter][channelsCounter][samplesCounter] & 0x0F);  //DIGITAL_MESSAGE | (portNumber & 0xF)
@@ -485,7 +554,8 @@ void FirmataClass::sendSamplingPacket(void){
                               break;
                           }
                       }
-                     if (samplesCounter!=0) payload[contPayload][samplesCountToSend++]=samplesPacket[typesCounter][channelsCounter][samplesCounter];
+                     if (samplesCounter!=0 || typesCounter==0)
+                      payload[contPayload][samplesCountToSend++]=samplesPacket[typesCounter][channelsCounter][samplesCounter];
                       if (samplesCountToSend==(totalSamplesStored+11)){
                         payload[contPayload][samplesCountToSend]=END_SYSEX;
                         totalSamplesStored++;
@@ -511,7 +581,7 @@ void FirmataClass::sendSamplingPacket(void){
         free((uint8_t*)samplesPacket[typesCounter]);
         }
      //free((uint8_t***)samplesPacket);
-     //samplePacketInitialicedMasterPointer=false;
+     //samplePacketInitialicedTypeZero=false;
     for(byte contPayloadToSend=0;contPayloadToSend<=contPayload;contPayloadToSend++){
         if (contPayloadToSend==contPayload) {
             lengthPayload=(totalSamplesStored-100*contPayload+11);
