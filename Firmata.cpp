@@ -362,6 +362,20 @@ void FirmataClass::processInput(uint8_t inputData)
 
 //------------------------------------------------------------------------------
 // Serial Send Handling
+void FirmataClass::sendErrorTx(uint8_t errorCode){
+    payload[0][0] = (START_SYSEX);
+    payload[0][1] = (ERROR_TX);
+    payload[0][2] = (errorCode);
+    payload[0][3]=(year()&0x0F);
+    payload[0][4]=month();
+    payload[0][5]=day();
+    payload[0][6]=hour();
+    payload[0][7]=minute();
+    payload[0][8]=second();
+    payload[0][9] = (START_SYSEX);
+    tx64 = Tx64Request(addr64, payload[0], 10);
+    xbee.send(tx64);
+}
 
 // send an analog message
 void FirmataClass::sendAnalog(byte pin, int value)
@@ -373,6 +387,64 @@ void FirmataClass::sendAnalog(byte pin, int value)
   xbee.send(tx64);
   //FirmataStream->write(ANALOG_MESSAGE | (pin & 0xF));
   //sendValueAsTwo7bitBytes(value);
+}
+
+void FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
+    bool channelStoredBefore=false;
+    bool auxCheckReadyToSend=false;
+    readyToSend=true;
+    /*if (samplePacketInitialicedMasterPointer==false) {
+        samplesPacket=(uint8_t ***)calloc(4, sizeof(uint8_t**));
+        samplePacketInitialicedMasterPointer=true;
+    }*/
+    if (firstSample[type]==true){
+        firstSample[type]=false;
+        contChannels[type]=1;
+        if (samplePacketInitialiced[type]==0){
+                    samplesPacket[type]=(uint8_t **)calloc(numberChannels, sizeof(uint8_t*));
+                    samplesPacket[type][0]=(uint8_t*)calloc(((samplesCount*2)+1), sizeof(uint8_t));
+                    samplePacketInitialiced[type]=true;
+                    }
+        samplesPacket[type][0][0]=pin;
+    } else {
+        for (byte k=0;k<contChannels[type];k++){
+              if (pin==samplesPacket[type][k][0]) {
+              channelStoredBefore=true;
+              }
+          }
+          if (channelStoredBefore==false) {
+            samplesPacket[type][contChannels[type]]=(uint8_t*)calloc(((samplesCount*2)+1), sizeof(uint8_t));
+            samplesPacket[type][contChannels[type]][0]=pin;
+            contChannels[type]++;
+            }
+    }
+        if (type==1){
+            for (byte channelNumber=0;channelNumber<contChannels[type];channelNumber++){
+                if (pin==samplesPacket[1][channelNumber][0]){
+                    samplesPacket[1][channelNumber][contSamplesStored[1][channelNumber]++]=((uint8_t)value % 128);
+                    samplesPacket[1][channelNumber][contSamplesStored[1][channelNumber]++]=(value >> 7);
+                }
+            }
+        } else if (type==2) {
+              for (byte channelNumber=0;channelNumber<contChannels[type];channelNumber++){
+                        if (pin==samplesPacket[2][channelNumber][0]){
+                           samplesCountPerChannel[2][channelNumber]++;
+                           sendValueAsTwo7bitBytesXbee(samplesPacket[2][channelNumber], contSamplesStored[2][channelNumber], value);
+                           contSamplesStored[2][channelNumber]+=2;
+                        }
+                    }
+        }
+    for (byte typesCounter=3;typesCounter>0;typesCounter--){
+            for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
+               if(samplesCountPerChannel[typesCounter][channelsCounter]>=samplesCount){
+               auxCheckReadyToSend=true;
+               readyToSend=(readyToSend & auxCheckReadyToSend);
+               } else {
+               auxCheckReadyToSend=false;
+               readyToSend=(readyToSend & auxCheckReadyToSend);
+               }
+            }
+        }
 }
 
 void FirmataClass::sendSamplingPacket(void){
@@ -449,6 +521,8 @@ void FirmataClass::sendSamplingPacket(void){
             xbee.send(tx64);
     }
 }
+
+
 // send 14-bits in a single digital message (protocol v1)
 // send an 8-bit port in a single digital message (protocol v2)
 void FirmataClass::sendDigitalPort(byte portNumber, int portData)
@@ -460,64 +534,6 @@ void FirmataClass::sendDigitalPort(byte portNumber, int portData)
  xbee.send(tx64);
 }
 
-
-void FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
-    bool channelStoredBefore=false;
-    bool auxCheckReadyToSend=false;
-    readyToSend=true;
-    /*if (samplePacketInitialicedMasterPointer==false) {
-        samplesPacket=(uint8_t ***)calloc(4, sizeof(uint8_t**));
-        samplePacketInitialicedMasterPointer=true;
-    }*/
-    if (firstSample[type]==true){
-        firstSample[type]=false;
-        contChannels[type]=1;
-        if (samplePacketInitialiced[type]==0){
-                    samplesPacket[type]=(uint8_t **)calloc(numberChannels, sizeof(uint8_t*));
-                    samplesPacket[type][0]=(uint8_t*)calloc(((samplesCount*2)+1), sizeof(uint8_t));
-                    samplePacketInitialiced[type]=true;
-                    }
-        samplesPacket[type][0][0]=pin;
-    } else {
-        for (byte k=0;k<contChannels[type];k++){
-              if (pin==samplesPacket[type][k][0]) {
-              channelStoredBefore=true;
-              }
-          }
-          if (channelStoredBefore==false) {
-            samplesPacket[type][contChannels[type]]=(uint8_t*)calloc(((samplesCount*2)+1), sizeof(uint8_t));
-            samplesPacket[type][contChannels[type]][0]=pin;
-            contChannels[type]++;
-            }
-    }
-        if (type==1){
-            for (byte channelNumber=0;channelNumber<contChannels[type];channelNumber++){
-                if (pin==samplesPacket[1][channelNumber][0]){
-                    samplesPacket[1][channelNumber][contSamplesStored[1][channelNumber]++]=((uint8_t)value % 128);
-                    samplesPacket[1][channelNumber][contSamplesStored[1][channelNumber]++]=(value >> 7);
-                }
-            }
-        } else if (type==2) {
-              for (byte channelNumber=0;channelNumber<contChannels[type];channelNumber++){
-                        if (pin==samplesPacket[2][channelNumber][0]){
-                           samplesCountPerChannel[2][channelNumber]++;
-                           sendValueAsTwo7bitBytesXbee(samplesPacket[2][channelNumber], contSamplesStored[2][channelNumber], value);
-                           contSamplesStored[2][channelNumber]+=2;
-                        }
-                    }
-        }
-    for (byte typesCounter=3;typesCounter>0;typesCounter--){
-            for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
-               if(samplesCountPerChannel[typesCounter][channelsCounter]>=samplesCount){
-               auxCheckReadyToSend=true;
-               readyToSend=(readyToSend & auxCheckReadyToSend);
-               } else {
-               auxCheckReadyToSend=false;
-               readyToSend=(readyToSend & auxCheckReadyToSend);
-               }
-            }
-        }
-}
 
 
 void FirmataClass::sendSysex(byte command, byte bytec, byte *bytev)

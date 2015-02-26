@@ -76,6 +76,7 @@
 #define SYSEX_SAMPLING_INTERVAL 0x7A // same as SAMPLING_INTERVAL
 #define SET_TIME                0X80
 #define END_REPORT              0x99 // end report response
+#define ERROR_TX                0x60
 
 // pin modes
 //#define INPUT                 0x00 // defined in wiring.h
@@ -163,6 +164,7 @@ public:
   void sendString(const char *string);
   void sendString(byte command, const char *string);
   void sendInt(uint8_t uint8_t);
+  void sendErrorTx(uint8_t errorCode);
   void sendSysex(byte command, byte bytec, byte *bytev);
   void write(byte c);
   /* attach & detach callback functions to messages */

@@ -382,14 +382,7 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
 
   switch (command) {
       case SET_TIME:
-      Serial.println("SET_TIME");
-      //Serial.println("SETTimeSETTimeSETTimeSETTimeSETTime");
-      //setTime((argv[3]-16),(argv[4]-16),(argv[5]-16),(argv[2]-16),(argv[1]-16),(argv[0]-16));
-      for(byte k=0;k<6;k++){
-        Serial.print("argv ");Serial.print(k);Serial.print("  ");Serial.println(argv[k]);
-      }
       setTime((argv[3]),(argv[4]),(argv[5]),(argv[2]),(argv[1]),(argv[0]));
-     // setTime((argv[3]),(argv[4]),(argv[5]),(argv[2]),(argv[1]),(argv[0]));
       break;
     /*case I2C_REQUEST:
       mode = argv[1] & I2C_READ_WRITE_MODE_MASK;
@@ -686,10 +679,10 @@ void systemResetCallback()
   analogInputsToReport = 0;
   //reset Firmata's variables
   for (byte typesCounter=3;typesCounter>0;typesCounter--){
-        free((uint8_t*)Firmata.samplesPacket[typesCounter]);
            for (byte channelsCounter=0;channelsCounter<Firmata.contChannels[typesCounter];channelsCounter++){
                 free((uint8_t**)Firmata.samplesPacket[typesCounter][channelsCounter]);
             }
+            free((uint8_t*)Firmata.samplesPacket[typesCounter]);
         }
      free((uint8_t***)Firmata.samplesPacket);
   Firmata.begin();
@@ -744,6 +737,7 @@ void loop()
   if (Firmata.xbee.getResponse().isError()){
       Serial.print("response error code");
       Serial.println(Firmata.xbee.getResponse().getErrorCode());
+      Firmata.sendErrorTx(Firmata.xbee.getResponse().getErrorCode());
   }
 
 
