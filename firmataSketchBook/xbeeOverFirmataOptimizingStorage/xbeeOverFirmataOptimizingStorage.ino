@@ -705,12 +705,12 @@ void setup()
   Serial.begin(57600);  //***
   Serial.println("Firmata is going to START");
   Firmata.begin();
- /* pinMode(22, OUTPUT);
+  pinMode(22, OUTPUT);
   pinMode(53, OUTPUT);
   if (!Firmata.FirmataSD.begin(53)) {
     Serial.println("initialization failed!");
     return;
-  } else Serial.println("initialization done.");*/
+  } else Serial.println("initialization done.");
  // systemResetCallback();  // reset to default config
  Serial.println("SETUP is DONE");
 }
