@@ -114,15 +114,12 @@ public:
   //uint8_t payload[300];
   uint8_t payload[10][100];
   uint8_t samplingPacket[10][120];
-  uint8_t numPayloadSD;
-  uint8_t numPayloadsCounter;
 
-  uint8_t lengthPayloads[10];
   uint8_t numAnalog;
   uint8_t numDigital;
   uint16_t samplesCount;
   uint16_t samplesCountPerChannel[4][TOTAL_PINS];
-  uint16_t numberChannels;
+  uint16_t numberChannels[4];
   uint8_t lengthPayload;
 
   uint8_t ***samplesPacket;
@@ -135,7 +132,6 @@ public:
   bool samplePacketInitialiced[4];
   bool samplePacketInitialicedTypeZero;
   bool readyToSend;
-  uint16_t counterToDelete;
 
   Rx64Response rx64;//***
   XBeeAddress64 rx64Address;
@@ -177,13 +173,12 @@ public:
   //int storeDigitalPort(byte portNumber, int portData);
   //int storeAnalog(byte pin, int value);
   void storeSamplingPacket(uint8_t pin, int value, byte type);
-  void storePacketInSD();
+  uint8_t storePacketInSD();
   int sendFile(void);
   void sendSamplingPacket(void);
 
   /* utility methods */
-  void sendValueAsTwo7bitBytes(int value);
-  void sendValueAsTwo7bitBytesXbee(uint8_t* payload, int offset, int value);
+  void storeValueAsTwo7bitBytes(uint8_t* payload, int offset, int value);
   void startSysex(void);
   void endSysex(void);
 
