@@ -207,7 +207,7 @@ void setPinModeCallback(byte pin, int mode)
         if (!(portConfigInputs[pin / 8] & (1 << (pin & 7)))) Firmata.numberChannels++;
       portConfigInputs[pin / 8] |= (1 << (pin & 7));      
        // Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
-        Serial.print("Firmata.numberChannels  ");
+        Serial.print("Firmata.number digital Channels  ");
         Serial.println(Firmata.numberChannels);
         Serial.print("Firmata.samplesCount  ");
         Serial.println(Firmata.samplesCount);
@@ -321,7 +321,7 @@ void reportAnalogCallback(byte analogPin, int value)
      // Serial.println("configuring pin to reportAnalog ");
       if (!(analogInputsToReport & (1 << analogPin))) Firmata.numberChannels++;
       //Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
-     Serial.print("Firmata.numberChannels  ");
+     Serial.print("Firmata analog channels number");
       Serial.println(Firmata.numberChannels);
       Serial.print("Firmata.samplesCount  ");
       Serial.println(Firmata.samplesCount);
@@ -344,7 +344,6 @@ void reportDigitalCallback(byte port, int value)
   Serial.println(value);*/
   if (port < TOTAL_PORTS) {
     reportPINs[port] = (byte)value;
-    Firmata.numberChannels++;
     // Send port value immediately. This is helpful when connected via
     // ethernet, wi-fi or bluetooth so pin states can be known upon
     // reconnecting.
@@ -680,9 +679,9 @@ void systemResetCallback()
   //reset Firmata's variables
   for (byte typesCounter=3;typesCounter>0;typesCounter--){
            for (byte channelsCounter=0;channelsCounter<Firmata.contChannels[typesCounter];channelsCounter++){
-                free((uint8_t**)Firmata.samplesPacket[typesCounter][channelsCounter]);
+                free((uint8_t*)Firmata.samplesPacket[typesCounter][channelsCounter]);
             }
-            free((uint8_t*)Firmata.samplesPacket[typesCounter]);
+            free((uint8_t**)Firmata.samplesPacket[typesCounter]);
         }
      free((uint8_t***)Firmata.samplesPacket);
   Firmata.begin();
@@ -705,12 +704,12 @@ void setup()
   Serial.begin(57600);  //***
   Serial.println("Firmata is going to START");
   Firmata.begin();
-  pinMode(22, OUTPUT);
+ /* pinMode(22, OUTPUT);
   pinMode(53, OUTPUT);
   if (!Firmata.FirmataSD.begin(53)) {
     Serial.println("initialization failed!");
     return;
-  } else Serial.println("initialization done.");
+  } else Serial.println("initialization done.");*/
  // systemResetCallback();  // reset to default config
  Serial.println("SETUP is DONE");
 }
