@@ -679,9 +679,9 @@ void systemResetCallback()
   //reset Firmata's variables
   for (byte typesCounter=3;typesCounter>0;typesCounter--){
            for (byte channelsCounter=0;channelsCounter<Firmata.contChannels[typesCounter];channelsCounter++){
-                free((uint8_t**)Firmata.samplesPacket[typesCounter][channelsCounter]);
+                free((uint8_t*)Firmata.samplesPacket[typesCounter][channelsCounter]);
             }
-            free((uint8_t*)Firmata.samplesPacket[typesCounter]);
+            free((uint8_t**)Firmata.samplesPacket[typesCounter]);
         }
      free((uint8_t***)Firmata.samplesPacket);
   Firmata.begin();
