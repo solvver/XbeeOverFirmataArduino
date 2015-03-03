@@ -525,12 +525,12 @@ void FirmataClass::sendSamplingPacket(void){
                           switch (typesCounter){
                               case 1:                                                     //digital channels
                               Serial.println("case 1");
-                              payload[contPayload][samplesCountToSend]=DIGITAL_MESSAGE | (samplesPacket[typesCounter][channelsCounter][samplesCounter] & 0x0F);  //DIGITAL_MESSAGE | (portNumber & 0xF)
+                              payload[contPayload][samplesCountToSend++]=DIGITAL_MESSAGE | (samplesPacket[typesCounter][channelsCounter][samplesCounter] & 0x0F);  //DIGITAL_MESSAGE | (portNumber & 0xF)
                               break;
                               case 2:                                                     //analog channel
                               Serial.println("case 2");
                               Serial.print("**samplesCountToSend");Serial.println(samplesCountToSend);
-                              payload[contPayload][samplesCountToSend]=(ANALOG_MESSAGE | (samplesPacket[typesCounter][channelsCounter][samplesCounter] & 0xF));
+                              payload[contPayload][samplesCountToSend++]=(ANALOG_MESSAGE | (samplesPacket[typesCounter][channelsCounter][samplesCounter] & 0xF));
                               Serial.print("++samplesCountToSend");Serial.println(samplesCountToSend);
                               break;
                           }
