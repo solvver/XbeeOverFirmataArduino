@@ -516,14 +516,14 @@ void FirmataClass::sendSamplingPacket(void){
                         payload[contPayload][samplesCountToSend]=END_SYSEX;
                         //totalSamplesStored++;
                       }
-                      if (samplesCountToSend==100) {
+                      if (samplesCountToSend==99) {
                       Serial.print("samplesCountToSend reaches 100 when it really is: ");Serial.println(samplesCountToSend);
-                        payload[contPayload][++samplesCountToSend]=END_SYSEX;
+                        payload[contPayload][samplesCountToSend]=END_SYSEX;
                         samplesCountToSend=0;
                         contPayload++;
                         payload[contPayload][samplesCountToSend++]=START_SYSEX;
                         payload[contPayload][samplesCountToSend++]=SAMPLES_PACKET;
-                        totalSamplesStored-=98;
+                        totalSamplesStored-=99;
                       }
             }
         }
