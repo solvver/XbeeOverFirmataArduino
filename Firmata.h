@@ -120,7 +120,6 @@ public:
   uint16_t samplesCount;
   uint16_t samplesCountPerChannel[4][TOTAL_PINS];
   uint16_t numberChannels[4];
-  uint8_t lengthPayload;
 
   uint8_t ***samplesPacket;
  // uint8_t samplesPacket[4][2][50];

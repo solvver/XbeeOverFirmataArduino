@@ -65,10 +65,8 @@ FirmataClass::FirmataClass()
 }*/
 
 /* begin method for overriding default serial bitrate */
-void FirmataClass::begin(void)  //***long speed
+void FirmataClass::begin(void)
 {
-  //Serial.begin(speed);    //***
-  //FirmataStream = &Serial; //***
   samplesPacket=(uint8_t ***)calloc(4, sizeof(uint8_t**));
   blinkVersion();
   flagStreaming=1;
@@ -353,7 +351,7 @@ void FirmataClass::sendErrorTx(uint8_t errorCode){
     payload[0][6]=hour();
     payload[0][7]=minute();
     payload[0][8]=second();
-    payload[0][9] = (START_SYSEX);
+    payload[0][9] = (END_SYSEX);
     tx64 = Tx64Request(addr64, payload[0], 10);
     xbee.send(tx64);
 }
@@ -401,36 +399,27 @@ uint8_t FirmataClass::storePacketInSD(){
 }
 
 void FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
-    Serial.println("##StoreSamplingPacket##");
     bool channelStoredBefore=false;
     bool auxCheckReadyToSend=false;
     readyToSend=true;
     byte numberChannelsTotal=numberChannels[1]+numberChannels[2]+numberChannels[3];
     if (samplePacketInitialicedTypeZero==false) {  //type Zero => general info; timeSample, sampleCount, numChannels
         //samplesPacket=(uint8_t ***)calloc(4, sizeof(uint8_t**));
-            Serial.println("samplePacketInitialicedTypeZero");
             samplesPacket[0]=(uint8_t **)calloc(1, sizeof(uint8_t*));
             samplesPacket[0][0]=(uint8_t*)calloc(11, sizeof(uint8_t));
 
             samplesPacket[0][0][0]=samplesCount;
             samplesPacket[0][0][1]=numberChannelsTotal;
             samplesPacket[0][0][2]=(year()&0x0F);
-            Serial.print("year");Serial.println(year()&0x0F);
             samplesPacket[0][0][3]=month();
-            Serial.print("month()");Serial.println(month());
             samplesPacket[0][0][4]=day();
-            Serial.print("day()");Serial.println(day());
             samplesPacket[0][0][5]=hour();
-            Serial.print("hour()");Serial.println(hour());
             samplesPacket[0][0][6]=minute();
-            Serial.print("minute()");Serial.println(minute());
             samplesPacket[0][0][7]=second();
-            Serial.print("second()");Serial.println(second());
             contSamplesStored[0][0]=8;
         samplePacketInitialicedTypeZero=true;
     }
     if (firstSample[type]==true){
-        Serial.println("Initializing sample packet type");
         firstSample[type]=false;
         contChannels[type]=1;
         if (samplePacketInitialiced[type]==0){
@@ -465,8 +454,6 @@ void FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
                 //       Serial.println("Storing analog channel") ;
                        samplesCountPerChannel[2][channelNumber]++;
                        storeValueAsTwo7bitBytes(samplesPacket[2][channelNumber], contSamplesStored[2][channelNumber], value);
-                       Serial.print("storing analog sample:  ");Serial.print(samplesPacket[2][channelNumber][(contSamplesStored[2][channelNumber]-2)], HEX);
-                       Serial.print("  ");Serial.println(samplesPacket[2][channelNumber][(contSamplesStored[2][channelNumber]-1)], HEX);
                        contSamplesStored[2][channelNumber]+=2;
                     }
                 }
@@ -489,10 +476,10 @@ void FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
 }
 
 void FirmataClass::sendSamplingPacket(void){
-    Serial.println("--send sampling Packet function");
     readyToSend=false;
     byte contPayload=0;
-    uint16_t totalSamplesStored=0;
+    uint8_t lengthPayload;
+    uint16_t totalSamplesStored=3;  //+1=>START_SYSEX +1=>SAMPLES_PACKET +1=>contPayload=+3
     uint16_t samplesCountToSend=0;
 
     payload[0][samplesCountToSend++]=START_SYSEX;
@@ -503,53 +490,40 @@ void FirmataClass::sendSamplingPacket(void){
                 totalSamplesStored+=contSamplesStored[typesCounter][channelsCounter];
                 }
         }
-
-    Serial.println("--making the payload");
+    Serial.print("total samples stored:  ");Serial.println(totalSamplesStored);
 
     for (byte typesCounter=0;typesCounter<4;typesCounter++){
-        Serial.print("--typesCounter"); Serial.println(typesCounter);
         for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
-            Serial.print("--channelsCounter"); Serial.println(channelsCounter);
-            Serial.print("--contSamplesStored[typesCounter][channelsCounter]"); Serial.println(contSamplesStored[typesCounter][channelsCounter]);
             for (byte samplesCounter=0;samplesCounter<contSamplesStored[typesCounter][channelsCounter];samplesCounter++){
-            Serial.print("samplesCountToSend");Serial.println(samplesCountToSend);
-            Serial.print("storing sample in samplesPacket");
-            Serial.println(samplesPacket[typesCounter][channelsCounter][samplesCounter], HEX);
                     if (typesCounter==0 && samplesCounter==2){
                      samplesCountToSend++;                           //let a hole for numPayloads
-                     Serial.print("###");
-                     Serial.println(samplesPacket[typesCounter][channelsCounter][samplesCounter], HEX);
                     }
                         if (samplesCounter==0 && typesCounter>0) {               //first byte contains pin info
-                        Serial.println("+++");
                           switch (typesCounter){
                               case 1:                                                     //digital channels
-                              Serial.println("case 1");
                               payload[contPayload][samplesCountToSend++]=DIGITAL_MESSAGE | (samplesPacket[typesCounter][channelsCounter][samplesCounter] & 0x0F);  //DIGITAL_MESSAGE | (portNumber & 0xF)
                               break;
                               case 2:                                                     //analog channel
-                              Serial.println("case 2");
-                              Serial.print("**samplesCountToSend");Serial.println(samplesCountToSend);
                               payload[contPayload][samplesCountToSend++]=(ANALOG_MESSAGE | (samplesPacket[typesCounter][channelsCounter][samplesCounter] & 0xF));
-                              Serial.print("++samplesCountToSend");Serial.println(samplesCountToSend);
                               break;
                           }
                       }
-                     if (samplesCounter!=0 || typesCounter==0)
-                        Serial.println("-|***|-");
+                     if (samplesCounter!=0 || typesCounter==0) {
                       payload[contPayload][samplesCountToSend++]=samplesPacket[typesCounter][channelsCounter][samplesCounter];
+                     }
                       if (samplesCountToSend==totalSamplesStored){
-                      Serial.println("samplesCountToSend==totalSamplesStored");
+                      Serial.print("samplesCountToSend==totalSamplesStored ");Serial.println(samplesCountToSend);
                         payload[contPayload][samplesCountToSend]=END_SYSEX;
-                        totalSamplesStored++;
+                        //totalSamplesStored++;
                       }
                       if (samplesCountToSend==100) {
-                       Serial.print("samplesCountToSend==100");Serial.println(samplesCountToSend);
-                        payload[contPayload][samplesCountToSend]=END_SYSEX;
+                      Serial.print("samplesCountToSend reaches 100 when it really is: ");Serial.println(samplesCountToSend);
+                        payload[contPayload][++samplesCountToSend]=END_SYSEX;
                         samplesCountToSend=0;
                         contPayload++;
                         payload[contPayload][samplesCountToSend++]=START_SYSEX;
-                        totalSamplesStored+=2;
+                        payload[contPayload][samplesCountToSend++]=SAMPLES_PACKET;
+                        totalSamplesStored-=98;
                       }
             }
         }
@@ -570,7 +544,8 @@ void FirmataClass::sendSamplingPacket(void){
 
     for(byte contPayloadToSend=0;contPayloadToSend<=contPayload;contPayloadToSend++){
         if (contPayloadToSend==contPayload) {
-            lengthPayload=(totalSamplesStored-100*contPayload);
+            //lengthPayload=((totalSamplesStored-100*contPayload)+1);  //+1 due to END_SYSEX
+            lengthPayload=(totalSamplesStored+1);  //+1 due to END_SYSEX
         } else lengthPayload=100;
          tx64 = Tx64Request(addr64, payload[contPayloadToSend], lengthPayload);
          xbee.send(tx64);
