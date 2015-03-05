@@ -490,8 +490,6 @@ void FirmataClass::sendSamplingPacket(void){
                 totalSamplesStored+=contSamplesStored[typesCounter][channelsCounter];
                 }
         }
-    Serial.print("total samples stored:  ");Serial.println(totalSamplesStored);
-
     for (byte typesCounter=0;typesCounter<4;typesCounter++){
         for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
             for (byte samplesCounter=0;samplesCounter<contSamplesStored[typesCounter][channelsCounter];samplesCounter++){
@@ -511,19 +509,22 @@ void FirmataClass::sendSamplingPacket(void){
                      if (samplesCounter!=0 || typesCounter==0) {
                       payload[contPayload][samplesCountToSend++]=samplesPacket[typesCounter][channelsCounter][samplesCounter];
                      }
-                      if (samplesCountToSend==totalSamplesStored){
-                      Serial.print("samplesCountToSend==totalSamplesStored ");Serial.println(samplesCountToSend);
-                        payload[contPayload][samplesCountToSend]=END_SYSEX;
+                     if(contPayload>0){
+                             if (contPayload>1 && samplesCountToSend==(totalSamplesStored+1)) {
+                                    payload[contPayload][++samplesCountToSend]=END_SYSEX;
+                                } else if (samplesCountToSend==(totalSamplesStored+2)) {
+                                    payload[contPayload][++samplesCountToSend]=END_SYSEX;
+                                }
+                     } else if (samplesCountToSend==totalSamplesStored){
+                      payload[contPayload][samplesCountToSend]=END_SYSEX;
                         //totalSamplesStored++;
                       }
-                      if (samplesCountToSend==99) {
-                      Serial.print("samplesCountToSend reaches 100 when it really is: ");Serial.println(samplesCountToSend);
-                        payload[contPayload][samplesCountToSend]=END_SYSEX;
+                      if (samplesCountToSend==100) {
                         samplesCountToSend=0;
                         contPayload++;
                         payload[contPayload][samplesCountToSend++]=START_SYSEX;
                         payload[contPayload][samplesCountToSend++]=SAMPLES_PACKET;
-                        totalSamplesStored-=99;
+                        totalSamplesStored-=100;
                       }
             }
         }
@@ -545,7 +546,8 @@ void FirmataClass::sendSamplingPacket(void){
     for(byte contPayloadToSend=0;contPayloadToSend<=contPayload;contPayloadToSend++){
         if (contPayloadToSend==contPayload) {
             //lengthPayload=((totalSamplesStored-100*contPayload)+1);  //+1 due to END_SYSEX
-            lengthPayload=(totalSamplesStored+1);  //+1 due to END_SYSEX
+            //lengthPayload=(totalSamplesStored+1);  //+1 due to END_SYSEX
+            lengthPayload=(samplesCountToSend+1);  //+1 due to END_SYSEX
         } else lengthPayload=100;
          tx64 = Tx64Request(addr64, payload[contPayloadToSend], lengthPayload);
          xbee.send(tx64);

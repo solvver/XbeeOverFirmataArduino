@@ -113,17 +113,11 @@ public:
   XBee xbee;  //añadido arturo 12-1-15
   //uint8_t payload[300];
   uint8_t payload[10][100];
-  uint8_t samplingPacket[10][120];
 
-  uint8_t numAnalog;
-  uint8_t numDigital;
   uint16_t samplesCount;
-  uint16_t samplesCountPerChannel[4][TOTAL_PINS];
   uint16_t numberChannels[4];
 
   uint8_t ***samplesPacket;
- // uint8_t samplesPacket[4][2][50];
- // uint8_t *channels;
   byte prevChannels[TOTAL_PINS];
   uint16_t contSamplesStored[4][TOTAL_PINS];  //[typeSample]x[channels]
   byte contChannels[4];
