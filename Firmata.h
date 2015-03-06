@@ -113,6 +113,7 @@ public:
   XBee xbee;  //añadido arturo 12-1-15
   //uint8_t payload[300];
   uint8_t payload[10][100];
+  uint16_t samplesCountPerChannel[4][TOTAL_PINS];
 
   uint16_t samplesCount;
   uint16_t numberChannels[4];
@@ -199,6 +200,9 @@ private:
   sysexCallbackFunction currentSysexCallback;
 
   /* private methods ------------------------------ */
+  void resetSamplesPacket(void);
+  void checkReadyToSend(void);
+  void initialicedSamplePackeTypeZero(void);
   void processSysexMessage(void);
   void systemReset(void);
   void strobeBlinkPin(int count, int onInterval, int offInterval);
