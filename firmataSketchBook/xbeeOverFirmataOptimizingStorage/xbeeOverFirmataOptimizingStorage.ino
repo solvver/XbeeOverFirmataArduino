@@ -14,14 +14,11 @@
   Copyright (C) 2010-2011 Paul Stoffregen.  All rights reserved.
   Copyright (C) 2009 Shigeru Kobayashi.  All rights reserved.
   Copyright (C) 2009-2014 Jeff Hoefs.  All rights reserved.
-
   This library is free software; you can redistribute it and/or
   modify it under the terms of the GNU Lesser General Public
   License as published by the Free Software Foundation; either
   version 2.1 of the License, or (at your option) any later version.
-
   See file LICENSE.txt for further informations on licensing terms.
-
   formatted using the GNU C formatting and indenting
 */
 
@@ -207,16 +204,14 @@ void setPinModeCallback(byte pin, int mode)
   if (IS_PIN_DIGITAL(pin)) {
     if (mode == INPUT) {
       //Serial.println("Configuring input digital pin");
-        if (!(portConfigInputs[pin / 8] & (1 << (pin & 7)))) Firmata.numberChannels++;
+        if (!(portConfigInputs[pin / 8] & (1 << (pin & 7)))) Firmata.numberChannels[1]++;
       portConfigInputs[pin / 8] |= (1 << (pin & 7));      
-        Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
-        Firmata.numPayloads=(Firmata.totalSamples/30);
-        Serial.print("Firmata.numberChannels  ");
+       // Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
+        /*Serial.print("Firmata.number digital Channels  ");
         Serial.println(Firmata.numberChannels);
-        Serial.print("Firmata.totalSamples  ");
-        Serial.println(Firmata.totalSamples);
-        Serial.print("Firmata.numPayloads  ");
-        Serial.println(Firmata.numPayloads);
+        Serial.print("Firmata.samplesCount  ");
+        Serial.println(Firmata.samplesCount);*/
+        Firmata.samplePacketInitialiced[1]=false;
     } else {
       portConfigInputs[pin / 8] &= ~(1 << (pin & 7));
     }
@@ -274,43 +269,6 @@ void setPinModeCallback(byte pin, int mode)
   // TODO: save status to EEPROM here, if changed
 }
 
-void analogWriteCallback(byte pin, int value)
-{
-  if (pin < TOTAL_PINS) {
-    switch (pinConfig[pin]) {
-      case PWM:
-        if (IS_PIN_PWM(pin))
-          analogWrite(PIN_TO_PWM(pin), value);
-        pinState[pin] = value;
-        break;
-    }
-  }
-}
-
-void digitalWriteCallback(byte port, int value)
-{
-  byte pin, lastPin, mask = 1, pinWriteMask = 0;
-
-  if (port < TOTAL_PORTS) {
-    // create a mask of the pins on this port that are writable.
-    lastPin = port * 8 + 8;
-    if (lastPin > TOTAL_PINS) lastPin = TOTAL_PINS;
-    for (pin = port * 8; pin < lastPin; pin++) {
-      // do not disturb non-digital pins (eg, Rx & Tx)
-      if (IS_PIN_DIGITAL(pin)) {
-        // only write to OUTPUT and INPUT (enables pullup)
-        // do not touch pins in PWM, ANALOG, SERVO or other modes
-        if (pinConfig[pin] == OUTPUT || pinConfig[pin] == INPUT) {
-          pinWriteMask |= mask;
-          pinState[pin] = ((byte)value & mask) ? 1 : 0;
-        }
-      }
-      mask = mask << 1;
-    }
-    writePort(port, (byte)value, pinWriteMask);
-  }
-}
-
 
 // -----------------------------------------------------------------------------
 /* sets bits in a bit array (int) to toggle the reporting of the analogIns
@@ -324,34 +282,28 @@ void reportAnalogCallback(byte analogPin, int value)
       analogInputsToReport = analogInputsToReport &~ (1 << analogPin);
     } else {
      // Serial.println("configuring pin to reportAnalog ");
-      if (!(analogInputsToReport & (1 << analogPin))) Firmata.numberChannels++;
-      Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
-      Firmata.numPayloads=(Firmata.totalSamples/30);
-     Serial.print("Firmata.numberChannels  ");
+      if (!(analogInputsToReport & (1 << analogPin))) Firmata.numberChannels[2]++;
+      //Firmata.totalSamples=(Firmata.numberChannels*Firmata.samplesCount);
+    /* Serial.print("Firmata analog channels number");
       Serial.println(Firmata.numberChannels);
-      Serial.print("Firmata.totalSamples  ");
-      Serial.println(Firmata.totalSamples);
-      Serial.print("Firmata.numPayloads  ");
-      Serial.println(Firmata.numPayloads);
+      Serial.print("Firmata.samplesCount  ");
+      Serial.println(Firmata.samplesCount);*/
       //Firmata.sendString("reportAnalogCallback");
       analogInputsToReport = analogInputsToReport | (1 << analogPin);
       // Send pin value immediately. This is helpful when connected via
       // ethernet, wi-fi or bluetooth so pin states can be known upon
       // reconnecting.
-      Firmata.sendAnalog(analogPin, analogRead(analogPin));
+     // Firmata.sendAnalog(analogPin, analogRead(analogPin));
+      Firmata.samplePacketInitialiced[2]=false;
     }
   }
   // TODO: save status to EEPROM here, if changed
 }
 
 void reportDigitalCallback(byte port, int value)
-{
-  /*Serial.println("01010101-REPORTdigitalCALLBACK---");
-  Serial.println(port);
-  Serial.println(value);*/
+{  
   if (port < TOTAL_PORTS) {
     reportPINs[port] = (byte)value;
-    Firmata.numberChannels++;
     // Send port value immediately. This is helpful when connected via
     // ethernet, wi-fi or bluetooth so pin states can be known upon
     // reconnecting.
@@ -371,13 +323,6 @@ void reportDigitalCallback(byte port, int value)
 
 void sysexCallback(byte command, byte argc, uint32_t *argv)
 {
-  //Serial.print("sysexCallback==>");
-  //Serial.print("command:");
-  //Serial.print(command);
-  //Serial.print("argc");
-  //Serial.print(argc);
-  //Serial.print("argv");
-  //Serial.println(*argv);
  /* byte mode;
   byte slaveAddress;
   byte data;
@@ -389,8 +334,7 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
 
   switch (command) {
       case SET_TIME:
-      //Serial.println("SETTimeSETTimeSETTimeSETTimeSETTime");
-      setTime((argv[3]-16),(argv[4]-16),(argv[5]-16),(argv[2]-16),(argv[1]-16),(argv[0]-16));
+      setTime((argv[3]),(argv[4]),(argv[5]),(argv[2]),(argv[1]),(argv[0]));
       break;
     /*case I2C_REQUEST:
       mode = argv[1] & I2C_READ_WRITE_MODE_MASK;
@@ -401,7 +345,6 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
       else {
         slaveAddress = argv[0];
       }
-
       switch (mode) {
         case I2C_WRITE:
           Wire.beginTransmission(slaveAddress);
@@ -466,7 +409,6 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
                 break;
               }
             }
-
             for (byte i = queryIndexToSkip; i < queryIndex + 1; i++) {
               if (i < MAX_QUERIES) {
                 query[i].addr = query[i + 1].addr;
@@ -483,34 +425,28 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
       break;
     case I2C_CONFIG:
       delayTime = (argv[0] + (argv[1] << 7));
-
       if (delayTime > 0) {
         i2cReadDelayTime = delayTime;
       }
-
       if (!isI2CEnabled) {
         enableI2CPins();
       }
-
       break;*/
     case SAMPLING_INTERVAL:  //OK
-      Serial.print("sampling interval  ");
+     // Serial.print("sampling interval  ");
       if (argc > 1) {
-        //if (argv[1]!=0){
           samplingInterval = (argv[0] + (argv[1] << 8)); //***-7=>+8
-        /*} else {
-          samplingInterval=argv[0];
-        }*/
-        Serial.println(samplingInterval);
+          
         if (samplingInterval < MINIMUM_SAMPLING_INTERVAL) {
           samplingInterval = MINIMUM_SAMPLING_INTERVAL;
         }
-      } else {
-        //Firmata.sendString("Not enough data");
+      } else if (argc==1){
+        samplingInterval = (argv[0]);
       }
-      break;
+      //Serial.println(samplingInterval);
+     break;
     case DELIVERY_INTERVAL:  //***
-    Serial.print("DELIVERY_INTERVAL");
+    //Serial.print("DELIVERY_INTERVAL");
       if (argc > 1) {
         if (argc==4){
           deliveryInterval = ((argv[0]<< 24) + (argv[1]<<16) + (argv[2]<<8) + (argv[3]));
@@ -519,10 +455,8 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
         } else {
           deliveryInterval = ((argv[0]<< 8) + (argv[1]));
         }
-        Serial.println(deliveryInterval);
-       // Firmata.sendString("DELIVERY_INTERVAL");
-       // Serial.print("Delivery interval value:   ");
-       //Serial.println(deliveryInterval);
+        previousMillis2=deliveryInterval;
+        //Serial.print(deliveryInterval);
         if (deliveryInterval < MINIMUM_DELIVERY_INTERVAL) {
           deliveryInterval = MINIMUM_DELIVERY_INTERVAL;
         }
@@ -532,6 +466,8 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
         else {*/
           Firmata.flagStreaming=0;
           Firmata.samplesCount=(deliveryInterval/samplingInterval);
+          //Serial.print("   ");
+          //Serial.println(Firmata.samplesCount);
         //}
       }
       break;
@@ -557,29 +493,24 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
           Firmata.payload[numPayload][cont++]=CAPABILITY_RESPONSE;  
         }
         if (IS_PIN_DIGITAL(pin)) {
-          //Serial.println("pin___Digital");
           Firmata.payload[numPayload][cont++]=((byte)INPUT);
           Firmata.payload[numPayload][cont++]=(1);
           Firmata.payload[numPayload][cont++]=((byte)OUTPUT);
           Firmata.payload[numPayload][cont++]=(1);
         }
         if (IS_PIN_ANALOG(pin)) {
-          //Serial.println("pin___Analog");
           Firmata.payload[numPayload][cont++]=(ANALOG);
           Firmata.payload[numPayload][cont++]=(10);
         }
         if (IS_PIN_PWM(pin)) {
-          //Serial.println("pin___PWM");
           Firmata.payload[numPayload][cont++]=(PWM);
           Firmata.payload[numPayload][cont++]=(8);
         }
         if (IS_PIN_DIGITAL(pin)) {
-          //Serial.println("pin___servo");
           Firmata.payload[numPayload][cont++]=(SERVO);
           Firmata.payload[numPayload][cont++]=(14);
         }
         if (IS_PIN_I2C(pin)) {
-          //Serial.println("pin___i2c");
           Firmata.payload[numPayload][cont++]=(I2C);
           Firmata.payload[numPayload][cont++]=(1);  // to do: determine appropriate value
         }
@@ -589,7 +520,6 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
       Firmata.payload[numPayload][cont]=END_SYSEX;
       Firmata.addr64= XBeeAddress64(0x0013A200, 0x406FB3AE);
       for (int contPayloadToSend=0; contPayloadToSend<(numPayload+1);contPayloadToSend++){
-      //Serial.print("sending");  
       if(contPayloadToSend<numPayload) Firmata.tx64 = Tx64Request(Firmata.addr64, Firmata.payload[contPayloadToSend], lengthPayload[contPayloadToSend]);
       if(contPayloadToSend==numPayload) Firmata.tx64 = Tx64Request(Firmata.addr64, Firmata.payload[contPayloadToSend], (cont+1));
       Firmata.xbee.send(Firmata.tx64);
@@ -668,17 +598,17 @@ void systemResetCallback()
 {
   Serial.println("SystemResetCallback");
   // initialize a defalt state
-  // TODO: option to load config from EEPROM instead of default
-  if (isI2CEnabled) {
-    disableI2CPins();
-  }
+  currentMillis=0;        // store the current value from millis()
+  previousMillis=0;       // for comparison with currentMillis
+  previousMillis2=0;      // same as currentMillis. Used with deliveryInterval
+  samplingInterval = 19;          // how often to run the main loop (in ms)
+  deliveryInterval = 0;
 
   for (byte i = 0; i < TOTAL_PORTS; i++) {
     reportPINs[i] = false;      // by default, reporting off
     portConfigInputs[i] = 0;  // until activated
     previousPINs[i] = 0;
   }
-
   /*for (byte i = 0; i < TOTAL_PINS; i++) {
     // pins with analog capability default to analog input
     // otherwise, pins default to digital output
@@ -689,38 +619,25 @@ void systemResetCallback()
       // sets the output to 0, configures portConfigInputs
       setPinModeCallback(i, OUTPUT);
     }
-
   }*/
-  for(byte k=0;k<11;k++){
-    for(byte i=0;i<100;i++){
-      Firmata.payload[k][i]=0;
-    }
-  }
+  
   // by default, do not report any analog inputs
   analogInputsToReport = 0;
   //reset Firmata's variables
+  for (byte typesCounter=3;typesCounter>0;typesCounter--){
+           for (byte channelsCounter=0;channelsCounter<Firmata.contChannels[typesCounter];channelsCounter++){
+                free((uint8_t*)Firmata.samplesPacket[typesCounter][channelsCounter]);
+            }
+            free((uint8_t**)Firmata.samplesPacket[typesCounter]);
+        }
+     free((uint8_t***)Firmata.samplesPacket);
   Firmata.begin();
-  //delay(100);
-  //reset time variables
-  //previousMillis=millis();
-  //previousMillis2=millis();
-  /* send digital inputs to set the initial state on the host computer,
-   * since once in the loop(), this firmware will only send on change */
-  /*
-  TODO: this can never execute, since no pins default to digital input
-        but it will be needed when/if we support EEPROM stored config
-  for (byte i=0; i < TOTAL_PORTS; i++) {
-    outputPort(i, readPort(i, portConfigInputs[i]), true);
-  }
-  */
 }
 
 void setup()
 {
   Firmata.setFirmwareVersion(FIRMATA_MAJOR_VERSION, FIRMATA_MINOR_VERSION);
 
-  Firmata.attach(ANALOG_MESSAGE, analogWriteCallback);
-  Firmata.attach(DIGITAL_MESSAGE, digitalWriteCallback);
   Firmata.attach(REPORT_ANALOG, reportAnalogCallback);
   Firmata.attach(REPORT_DIGITAL, reportDigitalCallback);
   Firmata.attach(SET_PIN_MODE, setPinModeCallback);
@@ -752,18 +669,17 @@ void loop()
   
   currentMillis = millis();
   
-  if ((currentMillis - previousMillis2) > deliveryInterval && Firmata.flagStreaming==0 && Firmata.payload[0][1]==SAMPLES_PACKET){ //enviar paquetes almacenados mientras tanto
+  if ((currentMillis - previousMillis2) > deliveryInterval && Firmata.flagStreaming==0 && Firmata.readyToSend==true){ //enviar paquetes almacenados mientras tanto
     previousMillis2+=deliveryInterval;
     /*if(Firmata.sendFile());
     else Firmata.sendPayloadSD();*/
    // Firmata.sendString("arduino sending");
-     Firmata.sendPayloadSD();
+     Firmata.sendSamplingPacket();
   }
     
   Firmata.xbee.readPacket();
   if (Firmata.xbee.getResponse().isError()){
-      Serial.print("response error code");
-      Serial.println(Firmata.xbee.getResponse().getErrorCode());
+      Firmata.sendErrorTx(Firmata.xbee.getResponse().getErrorCode());
   }
 
 
@@ -773,14 +689,12 @@ void loop()
 
   /* SERIALREAD - processing incoming messagse as soon as possible, while still
    * checking digital inputs.  */
-  /*while (Firmata.available())
-    Firmata.processInput();*/
-  
+    
    if (Firmata.xbee.getResponse().isAvailable()){
-         // Serial.println("#######_AVAILABLE_########");
+          //Serial.println("#######_AVAILABLE_########");
           if (Firmata.xbee.getResponse().getApiId() ==TX_STATUS_RESPONSE ) {
             Firmata.xbee.getResponse().getTxStatusResponse(Firmata.TxStatus);
-           // if(Firmata.TxStatus.getStatus()==0) Serial.println("Tx OK");
+            //if(Firmata.TxStatus.getStatus()==0) Serial.println("Tx OK");
         }
           if (Firmata.xbee.getResponse().getApiId() == RX_16_RESPONSE) {
                 /*xbee.getResponse().getRx16Response(rx16);
@@ -795,8 +709,6 @@ void loop()
                 for(contDataRx=0;contDataRx<(((Firmata.xbee.getResponse().getMsbLength()<<8)+Firmata.xbee.getResponse().getLsbLength())-11);contDataRx++){
                 //Serial.print("Data to process:  ");
                 //Serial.println(Firmata.rx64.getData(contDataRx), HEX);
-                //Firmata.sendString("processInput");
-                //Firmata.sendInt(Firmata.rx64.getData(contDataRx));
                 Firmata.processInput(Firmata.rx64.getData(contDataRx));
               }  
         }
@@ -812,17 +724,14 @@ void loop()
       if (Firmata.flagStreaming==0 && (portConfigInputs[pin / 8] & (1 << (pin & 7)))) {
           portValue = (readPort((pin/8), portConfigInputs[pin/8])) & portConfigInputs[pin / 8];
           Firmata.storeSamplingPacket(pin, portValue, 0x01);
-      }
-      //if (!Firmata.flagStreaming) checkDigitalInputs();      
+      }     
       if (IS_PIN_ANALOG(pin) && pinConfig[pin] == ANALOG) {
         analogPin = PIN_TO_ANALOG(pin);
         if (analogInputsToReport & (1 << analogPin)) {
-         // Serial.print("Checking analog pin");
-         // Serial.println(pin);
           if(Firmata.flagStreaming==1){
             Firmata.sendAnalog(analogPin, analogRead(analogPin));
             }  else {  //store error
-              Firmata.storeSamplingPacket(analogPin, analogRead(analogPin), 0x02);
+              Firmata.storeSamplingPacket(analogPin, analogRead(analogPin), 2);
             }
           }
       }
