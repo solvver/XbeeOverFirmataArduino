@@ -1,4 +1,4 @@
-/*
+    /*
   Firmata.h - Firmata library v2.4.0 - 2014-12-21
   Copyright (C) 2006-2008 Hans-Christoph Steiner.  All rights reserved.
 
@@ -76,6 +76,7 @@
 #define SYSEX_SAMPLING_INTERVAL 0x7A // same as SAMPLING_INTERVAL
 #define SET_TIME                0X80
 #define END_REPORT              0x99 // end report response
+#define ERROR_TX                0x60
 
 // pin modes
 //#define INPUT                 0x00 // defined in wiring.h
@@ -112,20 +113,19 @@ public:
   XBee xbee;  //añadido arturo 12-1-15
   //uint8_t payload[300];
   uint8_t payload[10][100];
-  uint8_t payloadSD[10][300];
-  uint8_t contPayload;   //initialized in begin(void)
-  uint8_t numPayloadSD;
-  uint8_t numPayloadsCounter;
+  uint16_t samplesCountPerChannel[4][TOTAL_PINS];
 
-  uint8_t lengthPayloads[10];
-  uint8_t numAnalog;
-  uint8_t numDigital;
   uint16_t samplesCount;
-  uint16_t numberChannels;
-  uint16_t totalSamples;
-  uint8_t lengthPayload;
-  uint8_t numPayloads;
+  uint16_t numberChannels[4];
 
+  uint8_t ***samplesPacket;
+  byte prevChannels[TOTAL_PINS];
+  uint16_t contSamplesStored[4][TOTAL_PINS];  //[typeSample]x[channels]
+  byte contChannels[4];
+  bool firstSample[4];
+  bool samplePacketInitialiced[4];
+  bool samplePacketInitialicedTypeZero;
+  bool readyToSend;
 
   Rx64Response rx64;//***
   XBeeAddress64 rx64Address;
@@ -154,6 +154,7 @@ public:
   void sendString(const char *string);
   void sendString(byte command, const char *string);
   void sendInt(uint8_t uint8_t);
+  void sendErrorTx(uint8_t errorCode);
   void sendSysex(byte command, byte bytec, byte *bytev);
   void write(byte c);
   /* attach & detach callback functions to messages */
@@ -165,13 +166,13 @@ public:
   /*SD functions*/
   //int storeDigitalPort(byte portNumber, int portData);
   //int storeAnalog(byte pin, int value);
-  int storeSamplingPacket(byte pin, int value, byte type);
+  void storeSamplingPacket(uint8_t pin, int value, byte type);
+  uint8_t storePacketInSD();
   int sendFile(void);
-  void sendPayloadSD(void);
+  void sendSamplingPacket(void);
 
   /* utility methods */
-  void sendValueAsTwo7bitBytes(int value);
-  void sendValueAsTwo7bitBytesXbee(uint8_t* payload, int offset, int value);
+  void storeValueAsTwo7bitBytes(uint8_t* payload, int offset, int value);
   void startSysex(void);
   void endSysex(void);
 
@@ -199,6 +200,9 @@ private:
   sysexCallbackFunction currentSysexCallback;
 
   /* private methods ------------------------------ */
+  void resetSamplesPacket(void);
+  void checkReadyToSend(void);
+  void initialicedSamplePackeTypeZero(void);
   void processSysexMessage(void);
   void systemReset(void);
   void strobeBlinkPin(int count, int onInterval, int offInterval);
