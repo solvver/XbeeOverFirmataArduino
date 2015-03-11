@@ -111,7 +111,7 @@ public:
   //void begin(long);
   void begin(Stream &s);
   XBee xbee;  //añadido arturo 12-1-15
-  //uint8_t payload[300];
+
   uint8_t payload[10][100];
   uint16_t samplesCountPerChannel[4][TOTAL_PINS];
 
@@ -164,10 +164,9 @@ public:
   void attach(byte command, sysexCallbackFunction newFunction);
   void detach(byte command);
   /*SD functions*/
-  //int storeDigitalPort(byte portNumber, int portData);
-  //int storeAnalog(byte pin, int value);
-  void storeSamplingPacket(uint8_t pin, int value, byte type);
   uint8_t storePacketInSD();
+  /*samplingPacketFunctions*/
+  void storeSamplingPacket(uint8_t pin, int value, byte type);
   int sendFile(void);
   void sendSamplingPacket(void);
 

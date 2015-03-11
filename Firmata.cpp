@@ -329,7 +329,7 @@ void FirmataClass::processInput(uint8_t inputData)
       sysexBytesRead = 0;
       break;
     case SYSTEM_RESET:
-         Serial.println("SYSTEM RESET");
+      Serial.println("SYSTEM RESET");
       systemReset();
       break;
     case REPORT_VERSION:
@@ -428,7 +428,6 @@ void FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
             contChannels[type]++;
             }
     }
-
     if (type==1){
         for (byte channelNumber=0;channelNumber<contChannels[type];channelNumber++){
             if (pin==samplesPacket[1][channelNumber][0]){
@@ -439,16 +438,13 @@ void FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
     } else if (type==2) {
           for (byte channelNumber=0;channelNumber<contChannels[type];channelNumber++){
                     if (pin==samplesPacket[2][channelNumber][0]){
-                //       Serial.println("Storing analog channel") ;
                        samplesCountPerChannel[2][channelNumber]++;
                        storeValueAsTwo7bitBytes(samplesPacket[2][channelNumber], contSamplesStored[2][channelNumber], value);
                        contSamplesStored[2][channelNumber]+=2;
                     }
                 }
     }
-
     checkReadyToSend();
-
 }
 
 void FirmataClass::initialicedSamplePackeTypeZero(void){
@@ -505,6 +501,7 @@ void FirmataClass::sendSamplingPacket(void){
                 totalSamplesStored+=contSamplesStored[typesCounter][channelsCounter];
                 }
         }
+
     for (byte typesCounter=0;typesCounter<4;typesCounter++){
         for (byte channelsCounter=0;channelsCounter<contChannels[typesCounter];channelsCounter++){
             for (byte samplesCounter=0;samplesCounter<contSamplesStored[typesCounter][channelsCounter];samplesCounter++){
@@ -524,13 +521,7 @@ void FirmataClass::sendSamplingPacket(void){
                      if (samplesCounter!=0 || typesCounter==0) {
                       payload[contPayload][samplesCountToSend++]=samplesPacket[typesCounter][channelsCounter][samplesCounter];
                      }
-                     if(contPayload>0){
-                             if (contPayload>1 && samplesCountToSend==(totalSamplesStored+1)) {
-                                    payload[contPayload][++samplesCountToSend]=END_SYSEX;
-                                } else if (samplesCountToSend==(totalSamplesStored+2)) {
-                                    payload[contPayload][++samplesCountToSend]=END_SYSEX;
-                                }
-                     } else if (samplesCountToSend==totalSamplesStored){
+                     if (samplesCountToSend==totalSamplesStored){
                       payload[contPayload][samplesCountToSend]=END_SYSEX;
                         //totalSamplesStored++;
                       }
@@ -539,20 +530,19 @@ void FirmataClass::sendSamplingPacket(void){
                         contPayload++;
                         payload[contPayload][samplesCountToSend++]=START_SYSEX;
                         payload[contPayload][samplesCountToSend++]=SAMPLES_PACKET;
+                        totalSamplesStored+=2;
                         totalSamplesStored-=100;
                       }
             }
         }
     }
-
+    //free memory reserved for samplesPacket
     resetSamplesPacket();
 
     payload[0][4]=contPayload;
 
     for(byte contPayloadToSend=0;contPayloadToSend<=contPayload;contPayloadToSend++){
         if (contPayloadToSend==contPayload) {
-            //lengthPayload=((totalSamplesStored-100*contPayload)+1);  //+1 due to END_SYSEX
-            //lengthPayload=(totalSamplesStored+1);  //+1 due to END_SYSEX
             lengthPayload=(samplesCountToSend+1);  //+1 due to END_SYSEX
         } else lengthPayload=100;
          tx64 = Tx64Request(addr64, payload[contPayloadToSend], lengthPayload);
