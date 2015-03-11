@@ -331,6 +331,7 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
   int cont=0;
   int lengthPayload[10];
   int numPayload=0;
+  byte numberCycles=0; 
 
   switch (command) {
       case SET_TIME:
@@ -466,9 +467,23 @@ void sysexCallback(byte command, byte argc, uint32_t *argv)
         else {*/
           Firmata.flagStreaming=0;
           Firmata.samplesCount=(deliveryInterval/samplingInterval);
-          //Serial.print("   ");
-          //Serial.println(Firmata.samplesCount);
-        //}
+          /* Normal timer operation.*/
+          TCCR1A = 0x00;
+          /* Configure the prescaler for 1:1024, giving us a 
+           * timeout of 4.09 seconds.*/
+          //TCCR1B = 0x05;
+          if ((samplingInterval%4000)>1){
+            TCCR1B = 0x05;        //Set Timer1 prescaler 1:1024
+            numberCycles=(samplingInterval/4000);
+            prescalerValue=(samplingInterval-(samplingInterval/4000));
+            numberCyclesPrescaler=prescalerValue;
+          } else if (((samplingInterval%1000)>1)){
+            TCCR1B = 0x04;        //Set Timer1 prescaler 1:256
+          } else {
+          
+          }
+          /* Enable the timer overflow interrupt. */
+          TIMSK1=0x01;
       }
       break;
     /*case EXTENDED_ANALOG:
@@ -591,7 +606,39 @@ void disableI2CPins() {
 }
 
 /*==============================================================================
- * SETUP()
+ * SLEEP()
+ *============================================================================*/
+
+void enterSleep(void)
+{
+  set_sleep_mode(SLEEP_MODE_IDLE);
+  
+  sleep_enable();
+
+
+  /* Disable all of the unused peripherals. This will reduce power
+   * consumption further and, more importantly, some of these
+   * peripherals may generate interrupts that will wake our Arduino from
+   * sleep!
+   */
+  power_adc_disable();
+  power_spi_disable();
+  //power_timer0_disable();
+  power_timer2_disable();
+  power_twi_disable();  
+
+  /* Now enter sleep mode. */
+  sleep_mode();
+  
+  /* The program will continue from here after the timer timeout*/
+  sleep_disable(); /* First thing to do is disable sleep. */
+  
+  /* Re-enable the peripherals. */
+  power_all_enable();
+}
+
+/*==============================================================================
+ * RESET()
  *============================================================================*/
 
 void systemResetCallback()
@@ -634,6 +681,10 @@ void systemResetCallback()
   Firmata.begin();
 }
 
+/*==============================================================================
+ * SETUP()
+ *============================================================================*/
+
 void setup()
 {
   Firmata.setFirmwareVersion(FIRMATA_MAJOR_VERSION, FIRMATA_MINOR_VERSION);
@@ -669,7 +720,7 @@ void loop()
   
   currentMillis = millis();
   
-  if ((currentMillis - previousMillis2) > deliveryInterval && Firmata.flagStreaming==0 && Firmata.readyToSend==true){ //enviar paquetes almacenados mientras tanto
+  if ((currentMillis - previousMillis2) >= deliveryInterval && Firmata.flagStreaming==0 && Firmata.readyToSend==true){ //enviar paquetes almacenados mientras tanto
     previousMillis2+=deliveryInterval;
     /*if(Firmata.sendFile());
     else Firmata.sendPayloadSD();*/
@@ -717,7 +768,7 @@ void loop()
   /* SEND FTDI WRITE BUFFER - make sure that thesendAnalogsendAnalog FTDI buffer doesn't go over
    * 60 bytes. use a timer to sending an event character every 4 ms to
    * trigger the buffer to dump. */
-  if ((currentMillis - previousMillis) > samplingInterval) {
+  if ((currentMillis - previousMillis) >= samplingInterval) {
     previousMillis += samplingInterval;
     /* ANALOGREAD - do all analogReads() at the configured sampling interval */
     for (pin = 0; pin < TOTAL_PINS; pin++) {      

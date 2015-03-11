@@ -446,9 +446,7 @@ void FirmataClass::storeSamplingPacket(uint8_t pin, int value, byte type){
                     }
                 }
     }
-
     checkReadyToSend();
-
 }
 
 void FirmataClass::initialicedSamplePackeTypeZero(void){
